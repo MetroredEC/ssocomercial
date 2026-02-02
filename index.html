@@ -99,6 +99,11 @@
       background: rgba(34,197,94,.10);
       color:#0f7a3a;
     }
+    .badge.supervisor{
+      border-color: rgba(99,102,241,.35);
+      background: rgba(99,102,241,.10);
+      color:#3730a3;
+    }
     .microHint{
       font-size:12px; color:var(--muted);
       padding:8px 10px;
@@ -455,6 +460,7 @@
         Cotizador SSO
         <span class="badge" id="badgeEnv">—</span>
         <span class="badge admin" id="badgeAdmin" style="display:none">ADMIN</span>
+        <span class="badge supervisor" id="badgeSupervisor" style="display:none">SUPERVISOR</span>
       </h1>
       <span>Tarifas · Descuentos · Matriz · Cotizaciones · Convenios</span>
     </div>
@@ -790,6 +796,7 @@ const TABS = [
   { id:"quote", label:"Cotización", title:"Cotización" },
   { id:"bulk", label:"Carga masiva", title:"Carga masiva" },
   { id:"agreements", label:"Convenios", title:"Convenios" },
+  { id:"approvals", label:"Aprobaciones", title:"Aprobaciones", supervisorOnly:true },
   { id:"admin", label:"Admin", title:"Administración", adminOnly:true },
 ];
 
@@ -800,14 +807,17 @@ let QUOTE_ITEMS = [];              // manual items
 let QUOTE_PREVIEW = null;          // last preview
 let BULK_VALID = null;             // last bulk validation (valid_rows, errors)
 let LAST_QUOTE_ID = null;
+let APPROVALS = null;              // pending approvals list
 
 function renderTabs(){
   const wrap = document.getElementById("tabs");
   wrap.innerHTML = "";
 
   const isAdmin = !!(ME && ME.permissions && ME.permissions.admin);
+  const isSupervisor = !!(ME && ME.permissions && (ME.permissions.supervisor || ME.permissions.admin));
   for (const t of TABS){
     if (t.adminOnly && !isAdmin) continue;
+    if (t.supervisorOnly && !isSupervisor) continue;
 
     const b = document.createElement("button");
     b.className = "tab" + (t.id === ACTIVE_TAB ? " active" : "");
@@ -832,6 +842,7 @@ function renderScreen(){
   if (ACTIVE_TAB === "quote") return renderQuoteScreen(body);
   if (ACTIVE_TAB === "bulk") return renderBulkScreen(body);
   if (ACTIVE_TAB === "agreements") return renderAgreementsScreen(body);
+  if (ACTIVE_TAB === "approvals") return renderApprovalsScreen(body);
   if (ACTIVE_TAB === "admin") return renderAdminScreen(body);
 
   body.innerHTML = "";
@@ -880,6 +891,22 @@ function renderQuoteScreen(root){
         </div>
 
         <div class="hr"></div>
+
+        <div class="pill">🏷️ Descuento manual</div>
+        <div class="help" style="margin-top:8px">
+          Aplica un descuento adicional al total. Si excedes el umbral permitido para tu rol, se generará una <b>solicitud de aprobación</b>.
+        </div>
+        <div class="grid2" style="margin-top:10px">
+          <div>
+            <label>Descuento manual (%)</label>
+            <input id="q_manual_pct" type="number" step="0.01" min="0" max="100" placeholder="0.00" />
+            <div class="help" id="q_manual_help" style="margin-top:6px"></div>
+          </div>
+          <div>
+            <label>Motivo (opcional)</label>
+            <input id="q_manual_reason" placeholder="Ej: descuento por volumen / negociación" />
+          </div>
+        </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
           <div class="pill">📦 Servicios (manual)</div>
@@ -936,6 +963,17 @@ function renderQuoteScreen(root){
       </div>
     </div>
   `;
+
+  // Manual discount helper text
+  const maxPct = (ME && ME.permissions) ? ME.permissions.max_manual_discount_percent : null;
+  const help = document.getElementById("q_manual_help");
+  if (help){
+    if (maxPct == null){
+      help.innerHTML = `Máximo sin aprobación: <b>sin límite</b> (admin)`;
+    } else {
+      help.innerHTML = `Máximo sin aprobación: <b>${escapeHtml(String(Number(maxPct).toFixed(2)))}%</b>`;
+    }
+  }
 
   renderQuoteLines();
 
@@ -1043,6 +1081,15 @@ async function doQuotePreview(mode){
 
   let payload = { mode, client, exam_type, valid_on };
 
+  // Manual discount
+  const mdPctRaw = document.getElementById("q_manual_pct")?.value;
+  const mdReason = document.getElementById("q_manual_reason")?.value?.trim() || "";
+  const mdPct = mdPctRaw != null && String(mdPctRaw).trim() !== "" ? Number(String(mdPctRaw).replace(",", ".")) : 0;
+  if (Number.isFinite(mdPct) && mdPct > 0){
+    payload.manual_discount_percent = mdPct;
+    if (mdReason) payload.manual_discount_reason = mdReason;
+  }
+
   if (mode === "bulk"){
     if (!BULK_VALID || !Array.isArray(BULK_VALID.valid_rows) || !BULK_VALID.valid_rows.length){
       alert("No hay carga masiva válida. Ve a la pestaña 'Carga masiva' y sube un CSV primero.");
@@ -1087,6 +1134,15 @@ async function doQuoteSave(){
   const mode = QUOTE_PREVIEW.mode || "manual";
   const payload = { mode, client, exam_type, valid_on };
 
+  // Manual discount (keep consistent with preview)
+  const mdPctRaw = document.getElementById("q_manual_pct")?.value;
+  const mdReason = document.getElementById("q_manual_reason")?.value?.trim() || "";
+  const mdPct = mdPctRaw != null && String(mdPctRaw).trim() !== "" ? Number(String(mdPctRaw).replace(",", ".")) : 0;
+  if (Number.isFinite(mdPct) && mdPct > 0){
+    payload.manual_discount_percent = mdPct;
+    if (mdReason) payload.manual_discount_reason = mdReason;
+  }
+
   if (mode === "bulk"){
     payload.rows = (BULK_VALID && BULK_VALID.valid_rows) ? BULK_VALID.valid_rows : [];
   } else {
@@ -1100,7 +1156,12 @@ async function doQuoteSave(){
     LAST_QUOTE_ID = QUOTE_PREVIEW && QUOTE_PREVIEW.id ? QUOTE_PREVIEW.id : null;
     renderQuotePreview();
     await loadLastQuotes();
-    alert("Cotización guardada: " + (LAST_QUOTE_ID || "(sin id)"));
+    const st = QUOTE_PREVIEW && QUOTE_PREVIEW.status ? String(QUOTE_PREVIEW.status) : "draft";
+    if (st === "pending_approval"){
+      alert("Cotización guardada y enviada a aprobación: " + (LAST_QUOTE_ID || "(sin id)"));
+    } else {
+      alert("Cotización guardada: " + (LAST_QUOTE_ID || "(sin id)"));
+    }
   }catch(e){
     alert("Error: " + (e.message || String(e)));
   }finally{
@@ -1153,8 +1214,17 @@ function renderQuotePreview(){
 
   const items = Array.isArray(q.items) ? q.items : [];
 
+  const wf = (q && typeof q.workflow === "object") ? q.workflow : null;
+  const approvalNote = (wf && wf.approval_required)
+    ? `<div class="help" style="margin-top:8px">⚠️ Requiere aprobación (${escapeHtml(String(wf.approval_target_role || "supervisor"))}). Motivo: ${escapeHtml(String(wf.manual_discount_reason || "—"))}</div>`
+    : ``;
+
   box.innerHTML = `
-    <div class="pill">Detalle</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+      <div class="pill">Detalle</div>
+      <div>${quoteStatusPill(q.status || "draft")}</div>
+    </div>
+    ${approvalNote}
     <div style="margin-top:10px; overflow:auto;">
       <table>
         <thead>
@@ -1652,12 +1722,167 @@ function renderAgreementDetail(){
 
 /**
  * ===========================
+ * Aprobaciones (Supervisor/Admin)
+ * ===========================
+ */
+function renderApprovalsScreen(root){
+  const canApprove = !!(ME && ME.permissions && (ME.permissions.supervisor || ME.permissions.admin || ME.permissions.can_approve_discounts));
+  if (!canApprove){
+    root.innerHTML = `<div class="help">No tienes permisos para ver aprobaciones.</div>`;
+    return;
+  }
+
+  root.innerHTML = `
+    <div>
+      <div class="pill">✅ Aprobaciones de descuentos</div>
+      <div class="help" style="margin-top:8px">Revisa solicitudes de descuento que exceden el umbral permitido para asesores/supervisores.</div>
+
+      <div class="rowActions" style="margin-top:12px; justify-content:flex-start; gap:8px">
+        <button class="btn small" id="ap_reload" type="button">Recargar</button>
+        <select id="ap_status" class="btn small" style="padding:8px 10px">
+          <option value="pending">Pendientes</option>
+          <option value="approved">Aprobadas</option>
+          <option value="rejected">Rechazadas</option>
+        </select>
+      </div>
+
+      <div id="ap_list" style="margin-top:12px; overflow:auto"></div>
+    </div>
+  `;
+
+  document.getElementById("ap_reload").addEventListener("click", async ()=>{ await loadApprovals(); });
+  document.getElementById("ap_status").addEventListener("change", async ()=>{ await loadApprovals(); });
+
+  loadApprovals().catch(()=>{});
+}
+
+async function loadApprovals(){
+  const el = document.getElementById("ap_list");
+  if (!el) return;
+
+  const status = (document.getElementById("ap_status")?.value || "pending");
+  setOverlay(true, "Cargando…", "Leyendo aprobaciones.");
+  try{
+    const res = await apiFetch(`/approvals?status=${encodeURIComponent(status)}&limit=100`, { method:"GET" });
+    APPROVALS = res.items || [];
+    renderApprovalsList();
+  }catch(e){
+    el.innerHTML = `<div class="pill err">Error: ${escapeHtml(e.message || String(e))}</div>`;
+  }finally{
+    setOverlay(false);
+  }
+}
+
+function renderApprovalsList(){
+  const el = document.getElementById("ap_list");
+  if (!el) return;
+
+  const items = Array.isArray(APPROVALS) ? APPROVALS : [];
+  if (!items.length){
+    el.innerHTML = `<div class="help">No hay registros para este filtro.</div>`;
+    return;
+  }
+
+  const canAct = !!(ME && ME.permissions && (ME.permissions.supervisor || ME.permissions.admin || ME.permissions.can_approve_discounts));
+  const showActions = canAct && (String(document.getElementById("ap_status")?.value || "pending") === "pending");
+
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Asesor</th>
+          <th>Cliente</th>
+          <th>Descuento</th>
+          <th>Motivo</th>
+          <th>Total</th>
+          <th>Estado</th>
+          ${showActions ? `<th>Acciones</th>` : ``}
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map(a => {
+          const pct = a.requested_discount_bps != null ? (Number(a.requested_discount_bps)/100).toFixed(2) : "0.00";
+          const who = a.requested_by_name || a.requested_by_email || a.requested_by || "—";
+          return `
+            <tr>
+              <td class="mono">${escapeHtml(String(a.requested_at || ""))}</td>
+              <td>${escapeHtml(String(who))}<div class="help mono">${escapeHtml(String(a.requested_by || ""))}</div></td>
+              <td>${escapeHtml(String(a.client_name || ""))}<div class="help mono">${escapeHtml(String(a.client_ruc || ""))}</div></td>
+              <td><b>${escapeHtml(pct)}%</b><div class="help">${money(a.requested_discount_cents || 0, a.currency || "USD")}</div></td>
+              <td>${escapeHtml(String(a.reason || "—"))}</td>
+              <td><b>${money(a.total_cents || 0, a.currency || "USD")}</b><div class="help">Quote: <span class="mono">${escapeHtml(String(a.quote_id || ""))}</span></div></td>
+              <td>${approvalStatusPill(a.status || "")}</td>
+              ${showActions ? `
+                <td>
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <button class="btn small primary" data-appr-act="approve" data-appr-id="${escapeHtml(String(a.id))}" type="button">Aprobar</button>
+                    <button class="btn small" data-appr-act="reject" data-appr-id="${escapeHtml(String(a.id))}" type="button">Rechazar</button>
+                  </div>
+                </td>
+              ` : ``}
+            </tr>
+          `;
+        }).join("")}
+      </tbody>
+    </table>
+  `;
+
+  if (showActions){
+    el.querySelectorAll("button[data-appr-id]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.apprId;
+        const act = btn.dataset.apprAct;
+        await actApproval(id, act);
+      });
+    });
+  }
+}
+
+function approvalStatusPill(status){
+  const s = String(status || "").toLowerCase();
+  if (s === "approved") return `<span class="pill ok">Aprobado</span>`;
+  if (s === "rejected") return `<span class="pill warn">Rechazado</span>`;
+  return `<span class="pill">Pendiente</span>`;
+}
+
+function quoteStatusPill(status){
+  const s = String(status || "draft").toLowerCase();
+  if (s === "pending_approval") return `<span class="pill warn">Pendiente de aprobación</span>`;
+  if (s === "approved") return `<span class="pill ok">Aprobada</span>`;
+  if (s === "sent") return `<span class="pill">Enviada</span>`;
+  if (s === "won") return `<span class="pill ok">Ganada</span>`;
+  if (s === "lost") return `<span class="pill warn">Perdida</span>`;
+  if (s === "archived") return `<span class="pill">Archivada</span>`;
+  return `<span class="pill">Borrador</span>`;
+}
+
+async function actApproval(id, action){
+  const act = String(action || "");
+  if (!id) return;
+  const verb = act === "approve" ? "Aprobar" : "Rechazar";
+  const comment = prompt(`${verb} solicitud #${id}\n\nComentario (opcional):`) || "";
+
+  setOverlay(true, `${verb}…`, "Aplicando decisión.");
+  try{
+    await apiFetch(`/approvals/${encodeURIComponent(id)}/${act}`, { method:"POST", body: { comment } });
+    await loadApprovals();
+  }catch(e){
+    alert("Error: " + (e.message || String(e)));
+  }finally{
+    setOverlay(false);
+  }
+}
+
+/**
+ * ===========================
  * Admin screen
  * ===========================
  */
 let ADMIN_TARIFFS = [];
 let ADMIN_DISCOUNTS = [];
 let ADMIN_MATRIX = [];
+let ADMIN_USERS = [];
 
 function renderAdminScreen(root){
   const isAdmin = !!(ME && ME.permissions && ME.permissions.admin);
@@ -1665,7 +1890,7 @@ function renderAdminScreen(root){
     root.innerHTML = `
       <div class="pill err">⛔ Acceso restringido</div>
       <div class="help" style="margin-top:10px">
-        No tienes permisos de <b>administrador</b>. Solicita el rol <span class="mono">${escapeHtml(cfg().adminRole || "cotizador.admin")}</span> en Entra.
+        No tienes permisos de <b>administrador</b> en la plataforma.
       </div>
     `;
     return;
@@ -1676,19 +1901,21 @@ function renderAdminScreen(root){
       <button class="tab active" id="adm_tab_tariffs" type="button">Tarifas</button>
       <button class="tab" id="adm_tab_discounts" type="button">Descuentos</button>
       <button class="tab" id="adm_tab_matrix" type="button">Matriz</button>
+      <button class="tab" id="adm_tab_users" type="button">Usuarios</button>
     </div>
 
     <div id="adm_body"></div>
   `;
 
   const setActive = (id) => {
-    ["adm_tab_tariffs","adm_tab_discounts","adm_tab_matrix"].forEach(x => document.getElementById(x).classList.remove("active"));
+    ["adm_tab_tariffs","adm_tab_discounts","adm_tab_matrix","adm_tab_users"].forEach(x => document.getElementById(x).classList.remove("active"));
     document.getElementById(id).classList.add("active");
   };
 
   document.getElementById("adm_tab_tariffs").addEventListener("click", ()=>{ setActive("adm_tab_tariffs"); renderAdminTariffs(); });
   document.getElementById("adm_tab_discounts").addEventListener("click", ()=>{ setActive("adm_tab_discounts"); renderAdminDiscounts(); });
   document.getElementById("adm_tab_matrix").addEventListener("click", ()=>{ setActive("adm_tab_matrix"); renderAdminMatrix(); });
+  document.getElementById("adm_tab_users").addEventListener("click", ()=>{ setActive("adm_tab_users"); renderAdminUsers(); });
 
   renderAdminTariffs();
 }
@@ -2190,6 +2417,178 @@ function renderAdminMatrixList(){
 
 /**
  * ===========================
+ * Admin: Usuarios & Roles
+ * ===========================
+ */
+function renderAdminUsers(){
+  const root = document.getElementById("adm_body");
+  if (!root) return;
+
+  root.innerHTML = `
+    <div class="pill">👥 Usuarios y roles</div>
+    <div class="help" style="margin-top:8px">
+      Los usuarios se registran automáticamente cuando inician sesión por primera vez. Aquí puedes asignar <b>roles</b> y <b>supervisor</b>.
+    </div>
+
+    <div class="rowActions" style="margin-top:12px; justify-content:flex-start; gap:10px; flex-wrap:wrap;">
+      <input id="u_search" placeholder="Buscar por nombre, email u oid" style="min-width:260px"/>
+      <button class="btn small" id="u_reload" type="button">Buscar</button>
+      <button class="btn small" id="u_reload_all" type="button">Recargar todo</button>
+    </div>
+
+    <div class="help" style="margin-top:10px" id="u_info">—</div>
+    <div class="hr"></div>
+    <div style="overflow:auto" id="u_list"></div>
+  `;
+
+  document.getElementById("u_reload").addEventListener("click", () => adminLoadUsers());
+  document.getElementById("u_reload_all").addEventListener("click", () => {
+    const s = document.getElementById("u_search");
+    if (s) s.value = "";
+    adminLoadUsers();
+  });
+
+  adminLoadUsers();
+}
+
+async function adminLoadUsers(){
+  const info = document.getElementById("u_info");
+  const listEl = document.getElementById("u_list");
+  if (info) info.textContent = "Cargando…";
+  if (listEl) listEl.innerHTML = `<div class="help">Cargando…</div>`;
+
+  const q = document.getElementById("u_search")?.value?.trim() || "";
+  const url = "/admin/users?limit=200" + (q ? `&q=${encodeURIComponent(q)}` : "");
+
+  setOverlay(true, "Cargando…", "Leyendo usuarios.");
+  try{
+    const res = await apiFetch(url, { method:"GET" });
+    ADMIN_USERS = res.items || [];
+    if (info) info.innerHTML = `Usuarios: <b>${ADMIN_USERS.length}</b>`;
+    renderAdminUsersList();
+  }catch(e){
+    if (info) info.innerHTML = `<span class="pill err">Error</span> ${escapeHtml(e.message || String(e))}`;
+    if (listEl) listEl.innerHTML = `<div class="pill err">Error: ${escapeHtml(e.message || String(e))}</div>`;
+  }finally{
+    setOverlay(false);
+  }
+}
+
+function renderAdminUsersList(){
+  const el = document.getElementById("u_list");
+  if (!el) return;
+
+  if (!ADMIN_USERS.length){
+    el.innerHTML = `<div class="help">No hay usuarios (aún).</div>`;
+    return;
+  }
+
+  const supervisors = ADMIN_USERS.filter(u => (u.role === "supervisor" || u.role === "admin") && u.active);
+  const supOptions = `<option value="">(sin supervisor)</option>` + supervisors
+    .map(s => `<option value="${escapeHtml(s.oid)}">${escapeHtml(s.display_name || s.email || s.oid)}</option>`)
+    .join("");
+
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Rol</th>
+          <th>Supervisor</th>
+          <th>Activo</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${ADMIN_USERS.map(u => {
+          const role = String(u.role || "advisor");
+          const active = u.active ? "1" : "0";
+          const sup = u.supervisor_oid || "";
+          return `
+            <tr>
+              <td>
+                <b>${escapeHtml(u.display_name || u.email || "(sin nombre)")}</b>
+                <div class="help mono">${escapeHtml(u.email || "—")}</div>
+                <div class="help mono">oid: ${escapeHtml(u.oid)}</div>
+              </td>
+              <td>
+                <select class="u_role" data-oid="${escapeHtml(u.oid)}">
+                  <option value="advisor" ${role === "advisor" ? "selected" : ""}>Asesor</option>
+                  <option value="supervisor" ${role === "supervisor" ? "selected" : ""}>Supervisor</option>
+                  <option value="admin" ${role === "admin" ? "selected" : ""}>Admin</option>
+                </select>
+              </td>
+              <td>
+                <select class="u_sup" data-oid="${escapeHtml(u.oid)}" ${role !== "advisor" ? "disabled" : ""}>
+                  ${supOptions}
+                </select>
+              </td>
+              <td>
+                <select class="u_active" data-oid="${escapeHtml(u.oid)}">
+                  <option value="1" ${active === "1" ? "selected" : ""}>Sí</option>
+                  <option value="0" ${active === "0" ? "selected" : ""}>No</option>
+                </select>
+              </td>
+              <td>
+                <button class="btn small primary u_save" data-oid="${escapeHtml(u.oid)}" type="button">Guardar</button>
+              </td>
+            </tr>
+          `;
+        }).join("")}
+      </tbody>
+    </table>
+  `;
+
+  // Set selected supervisor values after render
+  el.querySelectorAll("select.u_sup").forEach(sel => {
+    const oid = sel.dataset.oid;
+    const row = ADMIN_USERS.find(u => u.oid === oid);
+    if (row && row.supervisor_oid) sel.value = row.supervisor_oid;
+  });
+
+  // Role changes enable/disable supervisor select
+  el.querySelectorAll("select.u_role").forEach(sel => {
+    sel.addEventListener("change", () => {
+      const oid = sel.dataset.oid;
+      const supSel = el.querySelector(`select.u_sup[data-oid='${CSS.escape(oid)}']`);
+      if (supSel){
+        supSel.disabled = sel.value !== "advisor";
+        if (sel.value !== "advisor") supSel.value = "";
+      }
+    });
+  });
+
+  // Save per row
+  el.querySelectorAll("button.u_save").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const oid = btn.dataset.oid;
+      const roleSel = el.querySelector(`select.u_role[data-oid='${CSS.escape(oid)}']`);
+      const supSel = el.querySelector(`select.u_sup[data-oid='${CSS.escape(oid)}']`);
+      const activeSel = el.querySelector(`select.u_active[data-oid='${CSS.escape(oid)}']`);
+      if (!roleSel || !activeSel) return;
+
+      const role = roleSel.value;
+      const supervisor_oid = (supSel && !supSel.disabled) ? (supSel.value || null) : null;
+      const active = activeSel.value === "1";
+
+      setOverlay(true, "Guardando…", "Actualizando usuario.");
+      try{
+        await apiFetch(`/admin/users/${encodeURIComponent(oid)}`, {
+          method:"PATCH",
+          body: { role, supervisor_oid, active }
+        });
+        await adminLoadUsers();
+      }catch(e){
+        alert("Error: " + (e.message || String(e)));
+      }finally{
+        setOverlay(false);
+      }
+    });
+  });
+}
+
+/**
+ * ===========================
  * Last quotes list
  * ===========================
  */
@@ -2208,7 +2607,7 @@ async function loadLastQuotes(){
 
     wrap.innerHTML = `
       <table>
-        <thead><tr><th>ID</th><th>Cliente</th><th>Fecha</th><th>Modo</th><th>Total</th><th>Acción</th></tr></thead>
+        <thead><tr><th>ID</th><th>Cliente</th><th>Fecha</th><th>Modo</th><th>Estado</th><th>Total</th><th>Acción</th></tr></thead>
         <tbody>
           ${list.map(q => `
             <tr>
@@ -2216,6 +2615,7 @@ async function loadLastQuotes(){
               <td>${escapeHtml(q.client_name)}<div class="help mono">${escapeHtml(q.client_ruc)}</div></td>
               <td>${escapeHtml(q.created_at)}</td>
               <td>${escapeHtml(q.mode)}</td>
+              <td>${quoteStatusPill(q.status || "draft")}</td>
               <td><b>${money(q.total_cents || 0, q.currency || "USD")}</b></td>
               <td><button class="btn small" data-q="${escapeHtml(q.id)}" type="button">Abrir</button></td>
             </tr>
@@ -2473,9 +2873,17 @@ async function refreshAuthUI(){
   try{
     setOverlay(true, "Cargando…", "Validando permisos.");
     const me = await loadMe();
-    const isAdmin = !!(me && me.permissions && me.permissions.admin);
-    document.getElementById("badgeAdmin").style.display = isAdmin ? "inline-flex" : "none";
-    document.getElementById("userRole").textContent = isAdmin ? ("Rol: " + (cfg().adminRole || "admin")) : "Usuario";
+    const role = (me && (me.role || (me.permissions && me.permissions.role) || (me.user && me.user.role))) || "advisor";
+    const isAdmin = !!(me && me.permissions && me.permissions.admin) || String(role) === "admin";
+    const isSupervisor = !!(me && me.permissions && me.permissions.supervisor) || String(role) === "supervisor";
+
+    const badgeAdmin = document.getElementById("badgeAdmin");
+    const badgeSupervisor = document.getElementById("badgeSupervisor");
+    if (badgeAdmin) badgeAdmin.style.display = isAdmin ? "inline-flex" : "none";
+    if (badgeSupervisor) badgeSupervisor.style.display = (!isAdmin && isSupervisor) ? "inline-flex" : "none";
+
+    const roleLabel = String(role) === "admin" ? "Administrador" : (String(role) === "supervisor" ? "Supervisor" : "Asesor");
+    document.getElementById("userRole").textContent = "Rol: " + roleLabel;
 
     // render main UI
     renderTabs();
