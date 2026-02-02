@@ -1,0 +1,2523 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Cotizador SSO | Metrored</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="app-branch" content="prod" />
+  <style>
+    :root{
+      --bg:#f4f6fb;
+      --panel:#ffffff;
+      --panel2:#f5f7ff;
+      --border:rgba(148,163,184,.35);
+      --muted:#64748b;
+      --text:#111827;
+      --brand:#0a84ff;
+      --brand-2:#5b6bff;
+      --glass:rgba(255,255,255,.62);
+      --glass-strong:rgba(255,255,255,.78);
+      --glass-border:rgba(255,255,255,.5);
+      --danger:#e5484d;
+      --ok:#22c55e;
+      --warn:#f6b26b;
+      --shadow:0 24px 60px rgba(15,23,42,.12);
+      --shadow-soft:0 16px 30px rgba(15,23,42,.08);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(900px 520px at 6% -10%, rgba(90,125,255,.22) 0%, transparent 62%),
+        radial-gradient(820px 420px at 95% 10%, rgba(153,120,255,.2) 0%, transparent 58%),
+        var(--bg);
+      color:var(--text);
+      height:100vh;
+      overflow:hidden;
+    }
+    header{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:16px; padding:14px 20px;
+      border-bottom:1px solid var(--glass-border);
+      background:linear-gradient(180deg, rgba(255,255,255,.78), rgba(248,250,255,.55));
+      position:sticky; top:0; z-index:5;
+      backdrop-filter: blur(18px);
+    }
+    .brand{display:flex; align-items:center; gap:14px;}
+    .mark{
+      width:40px; height:40px; border-radius:14px;
+      display:grid; place-items:center;
+      background:linear-gradient(135deg, rgba(10,132,255,.24), rgba(91,107,255,.24));
+      border:1px solid rgba(255,255,255,.5);
+      overflow:hidden;
+    }
+    .mark svg{width:26px; height:26px}
+    .title{display:flex; flex-direction:column; line-height:1.1}
+    .title h1{font-size:18px; margin:0; font-weight:900; letter-spacing:.3px; display:flex; gap:8px; align-items:center;}
+    .title span{font-size:12px; color:var(--muted)}
+    .actions{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+    .chip{
+      font-size:12px; padding:6px 10px; border-radius:999px;
+      border:1px solid var(--glass-border); color:var(--muted);
+      background:var(--glass);
+      backdrop-filter: blur(12px);
+      display:flex; gap:8px; align-items:center;
+    }
+    .chip .pulse{position:relative;}
+    .chip .pulse::after{
+      content:"";
+      position:absolute; inset:-4px;
+      border-radius:50%;
+      border:1px solid rgba(56,108,255,.35);
+      animation:pulse 1.8s ease-out infinite;
+    }
+    .dot{width:8px; height:8px; border-radius:50%;}
+    .btn{
+      padding:10px 12px; border-radius:12px; border:1px solid var(--border);
+      background:var(--glass-strong); color:var(--text); cursor:pointer;
+      font-weight:800;
+      box-shadow:var(--shadow-soft);
+      backdrop-filter: blur(12px);
+    }
+    .btn.primary{background:var(--brand); color:#fff; border-color:transparent;}
+    .btn.ghost{background:transparent; box-shadow:none;}
+    .btn:disabled{opacity:.55; cursor:not-allowed}
+    .badge{
+      font-size:11px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid rgba(56,108,255,.25);
+      background:rgba(56,108,255,.08);
+      color:#2f57d6;
+      font-weight:900;
+      letter-spacing:.2px;
+    }
+    .badge.admin{
+      border-color: rgba(34,197,94,.35);
+      background: rgba(34,197,94,.10);
+      color:#0f7a3a;
+    }
+    .microHint{
+      font-size:12px; color:var(--muted);
+      padding:8px 10px;
+      border:1px dashed rgba(148,163,184,.4);
+      background:var(--glass);
+      border-radius:12px;
+      box-shadow:var(--shadow-soft);
+      display:flex; gap:8px; align-items:center;
+    }
+
+    main{
+      max-width:1180px;
+      margin:0 auto;
+      padding:18px;
+      height:calc(100vh - 72px);
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    @media (max-width: 980px){
+      body{overflow:auto; height:auto}
+      main{height:auto}
+    }
+
+    .card{
+      background:rgba(255,255,255,.72);
+      border:1px solid rgba(255,255,255,.7);
+      border-radius:20px;
+      overflow:hidden;
+      box-shadow:var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+    .card .hd{
+      padding:12px 14px;
+      border-bottom:1px solid rgba(255,255,255,.6);
+      display:flex; justify-content:space-between; align-items:center;
+      background:rgba(255,255,255,.7);
+      backdrop-filter: blur(16px);
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .card .hd h2{margin:0; font-size:13px; letter-spacing:.25px; color:var(--muted); font-weight:900; text-transform:uppercase}
+    .card .bd{padding:14px}
+    .tabs{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .tab{
+      font-size:12px;
+      padding:10px 12px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:#fff;
+      cursor:pointer;
+      user-select:none;
+      font-weight:900;
+      color:#334155;
+    }
+    .tab.active{
+      background:rgba(56,108,255,.12);
+      border-color:rgba(56,108,255,.35);
+      color:#2f57d6;
+    }
+    .grid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:12px;
+    }
+    @media (max-width: 900px){ .grid2{grid-template-columns:1fr} }
+
+    label{display:block; font-size:12px; color:var(--muted); margin:0 0 6px 2px; font-weight:900}
+    input, select, textarea{
+      width:100%;
+      padding:12px 12px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      outline:none;
+      font-family: inherit;
+    }
+    textarea{resize:vertical; min-height:92px;}
+    input:focus, select:focus, textarea:focus{border-color:rgba(56,108,255,.45)}
+    .help{font-size:12px; color:var(--muted); line-height:1.35}
+    .kpiRow{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px}
+    .kpi{
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid var(--border);
+      background:#fff;
+      min-width:180px;
+    }
+    .kpi .k{font-size:11px; color:var(--muted); font-weight:900; text-transform:uppercase}
+    .kpi .v{font-size:18px; font-weight:900; margin-top:4px}
+    .kpi .v.ok{color:#0f7a3a}
+    .kpi .v.err{color:var(--danger)}
+    .kpi .v.warn{color:#8a5a20}
+    .hr{height:1px; background:rgba(226,232,240,1); margin:14px 0}
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      overflow:hidden;
+      border-radius:14px;
+      border:1px solid rgba(226,232,240,1);
+      background:#fff;
+    }
+    th, td{
+      padding:10px 10px;
+      border-bottom:1px solid rgba(226,232,240,1);
+      font-size:12px;
+      text-align:left;
+      vertical-align:top;
+    }
+    th{
+      color:#475569;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.12em;
+      background:rgba(248,250,252,1);
+    }
+    tr:last-child td{border-bottom:none;}
+    .mono{font-family:var(--mono)}
+    .pill{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(56,108,255,.18);
+      background:rgba(56,108,255,.08);
+      color:#2f57d6;
+      font-weight:900;
+      font-size:12px;
+    }
+    .pill.warn{
+      border-color: rgba(246,178,107,.45);
+      background: rgba(246,178,107,.18);
+      color:#8a5a20;
+    }
+    .pill.err{
+      border-color: rgba(229,72,77,.35);
+      background: rgba(229,72,77,.12);
+      color:#b42318;
+    }
+    .rowActions{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; align-items:center;}
+    .btn.small{padding:8px 10px; border-radius:12px; font-size:12px}
+    .btn.danger{background:rgba(229,72,77,.12); border-color:rgba(229,72,77,.35); color:#b42318}
+    .btn.ok{background:rgba(34,197,94,.12); border-color:rgba(34,197,94,.35); color:#0f7a3a}
+
+    /* Modal */
+    .modalBackdrop{
+      position:fixed; inset:0; background:rgba(0,0,0,.6);
+      display:none; align-items:center; justify-content:center; z-index:50;
+      padding:18px;
+    }
+    .modal{
+      width:min(820px, 100%);
+      background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(245,247,251,.98));
+      border:1px solid var(--border);
+      border-radius:18px;
+      overflow:hidden;
+      box-shadow: 0 20px 60px rgba(15,23,42,.18);
+      max-height: calc(100vh - 56px);
+      display:flex;
+      flex-direction:column;
+    }
+    .modalHd{
+      padding:14px 16px; border-bottom:1px solid var(--border);
+      display:flex; justify-content:space-between; align-items:center;
+      gap:10px;
+    }
+    .modalHd h3{margin:0; font-size:14px; letter-spacing:.25px; color:var(--muted); text-transform:uppercase; font-weight:900}
+    .modalBd{
+      padding:16px;
+      flex:1;
+      min-height:0;
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .modalFt{padding:14px 16px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;}
+
+    /* Login */
+    .loginWrap{
+      height:100vh;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+      position:relative;
+      overflow:hidden;
+      background: #e9ecf4;
+    }
+    .loginWrap::before{
+      content:"";
+      position:absolute;
+      inset:-20% 0 35% 0;
+      background:
+        radial-gradient(60% 80% at 50% 0%, rgba(255,255,255,.95), rgba(230,235,246,.7) 60%, transparent 100%),
+        linear-gradient(180deg, rgba(255,255,255,.85), rgba(226,232,242,.7));
+      z-index:0;
+    }
+    .loginCard{
+      width:min(760px, 100%);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      text-align:center;
+      gap:18px;
+      position:relative;
+      z-index:1;
+    }
+    .loginTitle{
+      font-size:28px;
+      font-weight:800;
+      margin:6px 0 0;
+      color:#1f2937;
+    }
+    .loginSubtitle{
+      font-size:14px;
+      color:var(--muted);
+      margin:0;
+    }
+    .loginPanel{
+      width:min(560px, 100%);
+      padding:18px;
+      background:rgba(255,255,255,.75);
+      border:1px solid rgba(255,255,255,.7);
+      border-radius:22px;
+      box-shadow:0 24px 60px rgba(15,23,42,.14);
+      backdrop-filter: blur(18px);
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      align-items:center;
+    }
+    .loginPrimary{
+      width:100%;
+      font-size:16px;
+      padding:14px 16px;
+      border-radius:16px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+      box-shadow:0 16px 32px rgba(15,23,42,.12);
+      background:rgba(255,255,255,.92);
+      text-align:center;
+    }
+    .msBadge{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:800;
+      color:#374151;
+    }
+    .msLogo{
+      width:22px;
+      height:22px;
+      display:grid;
+      grid-template-columns:repeat(2, 1fr);
+      gap:2px;
+    }
+    .msLogo span{
+      display:block;
+      width:10px;
+      height:10px;
+      border-radius:2px;
+    }
+    .msLogo span:nth-child(1){background:#f25022;}
+    .msLogo span:nth-child(2){background:#7fba00;}
+    .msLogo span:nth-child(3){background:#00a4ef;}
+    .msLogo span:nth-child(4){background:#ffb900;}
+    .loginSecondary{
+      background:transparent;
+      border:none;
+      color:#6b7280;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .versionBadge{
+      position:fixed;
+      left:14px;
+      bottom:14px;
+      padding:6px 10px;
+      border-radius:10px;
+      border:1px solid var(--glass-border);
+      background:rgba(255,255,255,.75);
+      color:#475569;
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:.2px;
+      box-shadow:var(--shadow-soft);
+      z-index:10;
+    }
+
+    /* Loader */
+    .overlay{
+      position:fixed; inset:0;
+      background:rgba(15,23,42,.28);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:100;
+      padding:18px;
+    }
+    .overlayCard{
+      width:min(520px, 100%);
+      background:rgba(255,255,255,.92);
+      border:1px solid rgba(255,255,255,.75);
+      border-radius:18px;
+      box-shadow: 0 20px 60px rgba(15,23,42,.20);
+      backdrop-filter: blur(18px);
+      padding:16px;
+    }
+    .spinner{
+      width:28px; height:28px; border-radius:50%;
+      border:3px solid rgba(148,163,184,.35);
+      border-top-color: rgba(56,108,255,.75);
+      animation:spin .85s linear infinite;
+    }
+    .overlayTitle{font-weight:900; margin:8px 0 4px}
+    .overlayText{font-size:12px; color:var(--muted); margin:0}
+    @keyframes spin{ to{ transform: rotate(360deg);} }
+    @keyframes pulse{
+      0%{transform:scale(.7); opacity:.8}
+      100%{transform:scale(1.6); opacity:0}
+    }
+
+    footer{margin-top:12px; text-align:center; color:var(--muted); font-size:12px}
+  </style>
+
+  <!-- MSAL (Entra ID) -->
+  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+<header id="appHeader" style="display:none">
+  <div class="brand">
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2.4c4.2 0 7.6 3.4 7.6 7.6 0 6.1-7.6 11.6-7.6 11.6S4.4 16.1 4.4 10c0-4.2 3.4-7.6 7.6-7.6z" fill="url(#g)"/>
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#0a84ff" stop-opacity=".95"/>
+            <stop offset="1" stop-color="#5b6bff" stop-opacity=".95"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    <div class="title">
+      <h1>
+        Cotizador SSO
+        <span class="badge" id="badgeEnv">—</span>
+        <span class="badge admin" id="badgeAdmin" style="display:none">ADMIN</span>
+      </h1>
+      <span>Tarifas · Descuentos · Matriz · Cotizaciones · Convenios</span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <div class="chip" id="userChip" title="Usuario" style="display:none;">
+      <span id="userInitials" style="width:22px;height:22px;border-radius:8px;display:grid;place-items:center;border:1px solid var(--border);background:#fff;font-weight:900;font-size:11px;">U</span>
+      <span style="display:flex; flex-direction:column; line-height:1.1;">
+        <span id="userName" style="font-weight:900;">—</span>
+        <span id="userRole" style="font-weight:800; font-size:11px; color:var(--muted);">—</span>
+      </span>
+    </div>
+
+    <div class="chip" id="statusChip" title="Estado de sesión">
+      <span class="dot pulse" id="statusDot" style="background:var(--danger)"></span>
+      <span id="statusText">No autenticado</span>
+    </div>
+
+    <div class="microHint" id="modeHint" title="Ambiente">
+      <span>⚙️</span>
+      <span id="modeHintText">Configuración</span>
+    </div>
+
+    <button class="btn" id="cfgBtn">Configurar</button>
+    <button class="btn" id="loginBtn">Iniciar sesión</button>
+    <button class="btn ghost" id="logoutBtn" style="display:none">Cerrar sesión</button>
+  </div>
+</header>
+
+<!-- ===== Login Screen ===== -->
+<div class="loginWrap" id="loginWrap">
+  <div class="loginCard">
+    <div class="mark" style="width:64px;height:64px;border-radius:20px;">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:34px;height:34px">
+        <path d="M12 2.4c4.2 0 7.6 3.4 7.6 7.6 0 6.1-7.6 11.6-7.6 11.6S4.4 16.1 4.4 10c0-4.2 3.4-7.6 7.6-7.6z" fill="url(#g2)"/>
+        <defs>
+          <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#0a84ff" stop-opacity=".95"/>
+            <stop offset="1" stop-color="#5b6bff" stop-opacity=".95"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+
+    <h3 class="loginTitle">Cotizador SSO</h3>
+    <p class="loginSubtitle">Inicia sesión con tu cuenta corporativa (Microsoft 365 / Entra ID).</p>
+
+    <div class="loginPanel">
+      <button class="btn loginPrimary" id="loginBtn2" type="button">
+        <span class="msBadge">
+          <span class="msLogo">
+            <span></span><span></span><span></span><span></span>
+          </span>
+          Iniciar sesión con Microsoft 365
+        </span>
+      </button>
+
+      <button class="loginSecondary" id="openCfgBtn2" type="button">Configurar Worker + Entra</button>
+      <div class="help" id="loginMsg" style="margin-top:6px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="versionBadge" id="versionBadge">—</div>
+
+<main id="appMain" style="display:none">
+  <section class="card" style="flex:1; min-height:0;">
+    <div class="hd">
+      <h2 id="screenTitle">Cotización</h2>
+      <div class="tabs" id="tabs"></div>
+    </div>
+    <div class="bd" id="screenBody" style="min-height:0;"></div>
+  </section>
+
+  <footer>
+    Cotizador SSO · Metrored © 2026
+  </footer>
+</main>
+
+<!-- Config Modal -->
+<div class="modalBackdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modalHd">
+      <h3>Configuración</h3>
+      <button class="btn ghost" id="closeCfgBtn">Cerrar</button>
+    </div>
+    <div class="modalBd">
+      <div class="help">
+        Este sistema usa <b>Entra ID</b> para autenticar (SSO) y un <b>Cloudflare Worker</b> como backend.
+        Puedes cambiar la URL del worker o los parámetros de Entra sin tocar el código.
+      </div>
+
+      <div class="grid2" style="margin-top:14px">
+        <div style="grid-column:1 / -1;">
+          <label>Worker URL</label>
+          <input id="cfgWorker" placeholder="https://TU-WORKER.workers.dev" />
+          <div class="help" style="margin-top:6px">Se guarda en este dispositivo (localStorage).</div>
+        </div>
+
+        <div>
+          <label>Entra Tenant ID</label>
+          <input id="cfgTenant" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+        </div>
+        <div>
+          <label>Entra Client ID (SPA)</label>
+          <input id="cfgClient" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+        </div>
+        <div style="grid-column:1 / -1;">
+          <label>Scope del API</label>
+          <input id="cfgScope" placeholder="api://<API-ID>/<scope>" />
+          <div class="help" style="margin-top:6px">Ej: <span class="mono">api://66130291-fc50-43f1-943c-6818dac1ba99/basedeconocimiento</span></div>
+        </div>
+        <div style="grid-column:1 / -1;">
+          <label>Nombre del rol admin</label>
+          <input id="cfgAdminRole" placeholder="cotizador.admin" />
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="help">
+        <b>Prueba rápida:</b> el front hace ping a <span class="mono">/health</span> (sin autenticación).
+      </div>
+      <div id="testResult" class="help" style="margin-top:8px"></div>
+    </div>
+    <div class="modalFt">
+      <button class="btn" id="testConnBtn">Probar conexión</button>
+      <button class="btn primary" id="saveCfgBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loader overlay -->
+<div class="overlay" id="overlay">
+  <div class="overlayCard">
+    <div style="display:flex; gap:12px; align-items:center;">
+      <div class="spinner" aria-hidden="true"></div>
+      <div>
+        <div class="overlayTitle" id="overlayTitle">Procesando…</div>
+        <p class="overlayText" id="overlayText">Un momento por favor.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * ===========================
+ * Config (localStorage)
+ * ===========================
+ */
+const LS_CFG = "cotizador_cfg_v1";
+
+const DEFAULT_CFG = {
+  workerUrl: "https://TU-WORKER.workers.dev",
+  tenantId: "480bd49c-6f89-4faa-b39e-c7728d95d130",
+  clientId: "7bcef56f-d3c5-4a94-a953-41f8c6b0fa54",
+  scope: "api://66130291-fc50-43f1-943c-6818dac1ba99/basedeconocimiento",
+  adminRole: "cotizador.admin"
+};
+
+function loadCfg(){
+  try{
+    const raw = localStorage.getItem(LS_CFG);
+    if (!raw) return { ...DEFAULT_CFG };
+    const j = JSON.parse(raw);
+    return { ...DEFAULT_CFG, ...(j || {}) };
+  }catch{
+    return { ...DEFAULT_CFG };
+  }
+}
+function saveCfg(cfg){
+  localStorage.setItem(LS_CFG, JSON.stringify(cfg));
+}
+
+function cfg(){
+  return loadCfg();
+}
+function workerUrl(){
+  return String(cfg().workerUrl || "").trim().replace(/\/+$/,"");
+}
+
+function escapeHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+function safeInitials(nameOrEmail){
+  const s = String(nameOrEmail || "").trim();
+  if (!s) return "U";
+  const parts = s.split(/[\s.@_-]+/).filter(Boolean);
+  const a = (parts[0] || "U")[0] || "U";
+  const b = (parts[1] || "")[0] || "";
+  return (a + b).toUpperCase();
+}
+function money(cents, currency="USD"){
+  const n = Number(cents || 0) / 100;
+  const formatted = n.toLocaleString("es-EC", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (currency === "USD" ? "$" : currency + " ") + formatted;
+}
+function setOverlay(on, title, text){
+  const el = document.getElementById("overlay");
+  if (!el) return;
+  document.getElementById("overlayTitle").textContent = title || "Procesando…";
+  document.getElementById("overlayText").textContent = text || "Un momento por favor.";
+  el.style.display = on ? "flex" : "none";
+}
+
+/**
+ * ===========================
+ * MSAL (Entra ID)
+ * ===========================
+ */
+let msalInstance = null;
+let ME = null; // from /me
+
+function msalConfig(){
+  const c = cfg();
+  return {
+    auth: {
+      clientId: c.clientId,
+      authority: "https://login.microsoftonline.com/" + c.tenantId,
+      redirectUri: window.location.origin + window.location.pathname,
+    },
+    cache: { cacheLocation: "sessionStorage" },
+  };
+}
+
+async function authInit(){
+  msalInstance = new msal.PublicClientApplication(msalConfig());
+  await msalInstance.initialize();
+
+  const response = await msalInstance.handleRedirectPromise().catch(() => null);
+  if (response && response.account) {
+    msalInstance.setActiveAccount(response.account);
+  } else {
+    const acc = msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0];
+    if (acc) msalInstance.setActiveAccount(acc);
+  }
+
+  refreshAuthUI();
+}
+
+function activeAccount(){
+  return msalInstance.getActiveAccount() || msalInstance.getAllAccounts()[0] || null;
+}
+
+async function login(){
+  const c = cfg();
+  await msalInstance.loginRedirect({
+    scopes: [c.scope, "User.Read"],
+    prompt: "select_account"
+  });
+}
+
+async function logout(){
+  const acc = activeAccount();
+  if (!acc) return refreshAuthUI();
+  await msalInstance.logoutRedirect({ account: acc });
+}
+
+async function getAccessToken(){
+  const acc = activeAccount();
+  if (!acc) throw new Error("NOT_LOGGED_IN");
+
+  const c = cfg();
+  try{
+    const r = await msalInstance.acquireTokenSilent({ scopes: [c.scope], account: acc });
+    return r.accessToken;
+  }catch{
+    await msalInstance.acquireTokenRedirect({ scopes: [c.scope], account: acc });
+    throw new Error("REDIRECTING");
+  }
+}
+
+function setStatus(ok, text){
+  document.getElementById("statusDot").style.background = ok ? "var(--ok)" : "var(--danger)";
+  document.getElementById("statusText").textContent = text;
+}
+
+/**
+ * ===========================
+ * API
+ * ===========================
+ */
+async function apiFetch(path, { method="GET", body=null } = {}){
+  const token = await getAccessToken();
+  const url = workerUrl() + path;
+
+  const opts = {
+    method,
+    headers: {
+      "Authorization": "Bearer " + token,
+    }
+  };
+  if (body != null){
+    opts.headers["Content-Type"] = "application/json";
+    opts.body = JSON.stringify(body);
+  }
+
+  const r = await fetch(url, opts);
+  const j = await r.json().catch(()=> ({}));
+  if (!r.ok) {
+    const msg = j?.message || j?.error || ("HTTP " + r.status);
+    const e = new Error(msg);
+    e.status = r.status;
+    e.payload = j;
+    throw e;
+  }
+  return j;
+}
+
+async function pingHealth(){
+  const url = workerUrl() + "/health";
+  const r = await fetch(url, { method:"GET" });
+  const t = await r.text();
+  if (!r.ok) throw new Error("Health failed: " + r.status + " " + t);
+  return JSON.parse(t);
+}
+
+async function loadMe(){
+  ME = await apiFetch("/me", { method:"GET" });
+  return ME;
+}
+
+/**
+ * ===========================
+ * UI screens
+ * ===========================
+ */
+const TABS = [
+  { id:"quote", label:"Cotización", title:"Cotización" },
+  { id:"bulk", label:"Carga masiva", title:"Carga masiva" },
+  { id:"agreements", label:"Convenios", title:"Convenios" },
+  { id:"admin", label:"Admin", title:"Administración", adminOnly:true },
+];
+
+let ACTIVE_TAB = "quote";
+
+// State
+let QUOTE_ITEMS = [];              // manual items
+let QUOTE_PREVIEW = null;          // last preview
+let BULK_VALID = null;             // last bulk validation (valid_rows, errors)
+let LAST_QUOTE_ID = null;
+
+function renderTabs(){
+  const wrap = document.getElementById("tabs");
+  wrap.innerHTML = "";
+
+  const isAdmin = !!(ME && ME.permissions && ME.permissions.admin);
+  for (const t of TABS){
+    if (t.adminOnly && !isAdmin) continue;
+
+    const b = document.createElement("button");
+    b.className = "tab" + (t.id === ACTIVE_TAB ? " active" : "");
+    b.type = "button";
+    b.textContent = t.label;
+    b.addEventListener("click", () => {
+      ACTIVE_TAB = t.id;
+      renderScreen();
+      renderTabs();
+    });
+    wrap.appendChild(b);
+  }
+}
+
+function renderScreen(){
+  const title = document.getElementById("screenTitle");
+  const body = document.getElementById("screenBody");
+  const tab = TABS.find(x => x.id === ACTIVE_TAB) || TABS[0];
+
+  title.textContent = tab.title;
+
+  if (ACTIVE_TAB === "quote") return renderQuoteScreen(body);
+  if (ACTIVE_TAB === "bulk") return renderBulkScreen(body);
+  if (ACTIVE_TAB === "agreements") return renderAgreementsScreen(body);
+  if (ACTIVE_TAB === "admin") return renderAdminScreen(body);
+
+  body.innerHTML = "";
+}
+
+function renderQuoteScreen(root){
+  const today = new Date().toISOString().slice(0,10);
+
+  root.innerHTML = `
+    <div class="grid2">
+      <div>
+        <div class="help"><b>Modo:</b> manual (servicios) o usar el resultado de carga masiva.</div>
+        <div class="hr"></div>
+
+        <div class="grid2">
+          <div>
+            <label>Cliente</label>
+            <input id="q_client_name" placeholder="Nombre del cliente" />
+          </div>
+          <div>
+            <label>RUC</label>
+            <input id="q_client_ruc" placeholder="RUC / Identificación" />
+          </div>
+          <div>
+            <label>Contacto</label>
+            <input id="q_contact_name" placeholder="Nombre contacto" />
+          </div>
+          <div>
+            <label>Email</label>
+            <input id="q_contact_email" placeholder="correo@empresa.com" />
+          </div>
+          <div>
+            <label>Tipo de examen</label>
+            <select id="q_exam_type">
+              <option value="GENERAL">GENERAL</option>
+              <option value="PREOCUPACIONAL">PREOCUPACIONAL</option>
+              <option value="PERIODICO">PERIODICO</option>
+              <option value="RETIRO">RETIRO</option>
+              <option value="REUBICACION">REUBICACION</option>
+            </select>
+          </div>
+          <div>
+            <label>Fecha de vigencia</label>
+            <input id="q_valid_on" type="date" value="${today}" />
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div class="pill">📦 Servicios (manual)</div>
+          <div class="rowActions">
+            <button class="btn small" id="q_add_line" type="button">+ Agregar servicio</button>
+            <button class="btn small danger" id="q_clear_lines" type="button">Limpiar</button>
+          </div>
+        </div>
+
+        <div class="help" style="margin-top:8px">Usa códigos de servicio como: <span class="mono">LAB_HEMOGRAMA</span>, <span class="mono">RX_TORAX</span>, etc.</div>
+
+        <div style="margin-top:10px; overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:38%">Código</th>
+                <th style="width:18%">Cantidad</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="q_lines"></tbody>
+          </table>
+        </div>
+
+        <div class="help" style="margin-top:10px">
+          <b>Tip:</b> si ya hiciste una <b>Carga masiva</b> válida, puedes previsualizar una cotización en modo <b>bulk</b> desde aquí.
+        </div>
+
+        <div class="rowActions" style="margin-top:12px">
+          <button class="btn small" id="q_use_bulk" type="button">Usar carga masiva (bulk)</button>
+          <button class="btn small primary" id="q_preview" type="button">Previsualizar</button>
+          <button class="btn small ok" id="q_save" type="button" disabled>Guardar cotización</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="pill">🧾 Resultado</div>
+        <div class="help" style="margin-top:8px">
+          La previsualización calcula <b>tarifas</b> (D1), aplica <b>descuentos</b> y muestra el total.
+        </div>
+
+        <div class="kpiRow" id="q_kpis"></div>
+
+        <div class="hr"></div>
+
+        <div id="q_preview_box" class="help">Aún no hay previsualización.</div>
+
+        <div class="rowActions" style="margin-top:12px">
+          <button class="btn small" id="q_print" type="button" disabled>Descargar (PDF/Imprimir)</button>
+          <button class="btn small" id="q_reload_quotes" type="button">Ver últimas cotizaciones</button>
+        </div>
+
+        <div style="margin-top:10px; overflow:auto;" id="q_last_quotes"></div>
+      </div>
+    </div>
+  `;
+
+  renderQuoteLines();
+
+  document.getElementById("q_add_line").addEventListener("click", () => {
+    QUOTE_ITEMS.push({ service_code:"", qty:1 });
+    renderQuoteLines();
+  });
+
+  document.getElementById("q_clear_lines").addEventListener("click", () => {
+    QUOTE_ITEMS = [];
+    QUOTE_PREVIEW = null;
+    LAST_QUOTE_ID = null;
+    renderQuoteLines();
+    renderQuotePreview();
+  });
+
+  document.getElementById("q_preview").addEventListener("click", async () => {
+    await doQuotePreview("manual");
+  });
+
+  document.getElementById("q_use_bulk").addEventListener("click", async () => {
+    await doQuotePreview("bulk");
+  });
+
+  document.getElementById("q_save").addEventListener("click", async () => {
+    await doQuoteSave();
+  });
+
+  document.getElementById("q_print").addEventListener("click", () => {
+    printQuote(QUOTE_PREVIEW);
+  });
+
+  document.getElementById("q_reload_quotes").addEventListener("click", async () => {
+    await loadLastQuotes();
+  });
+
+  renderQuotePreview();
+  loadLastQuotes().catch(()=>{});
+}
+
+function renderQuoteLines(){
+  const tb = document.getElementById("q_lines");
+  if (!tb) return;
+  tb.innerHTML = "";
+
+  if (!QUOTE_ITEMS.length){
+    tb.innerHTML = `<tr><td colspan="3" class="help">No hay servicios aún. Agrega al menos 1.</td></tr>`;
+    return;
+  }
+
+  QUOTE_ITEMS.forEach((it, idx) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <input data-idx="${idx}" data-field="service_code" placeholder="SERVICIO_CODIGO" value="${escapeHtml(it.service_code || "")}" />
+      </td>
+      <td>
+        <input data-idx="${idx}" data-field="qty" type="number" min="1" value="${escapeHtml(it.qty || 1)}" />
+      </td>
+      <td>
+        <div class="rowActions">
+          <button class="btn small danger" data-act="del" data-idx="${idx}" type="button">Eliminar</button>
+        </div>
+      </td>
+    `;
+    tb.appendChild(tr);
+
+    tr.querySelectorAll("input").forEach(inp => {
+      inp.addEventListener("input", (e) => {
+        const i = Number(e.target.dataset.idx);
+        const f = e.target.dataset.field;
+        if (f === "qty") {
+          QUOTE_ITEMS[i][f] = Math.max(1, Math.floor(Number(e.target.value || 1)));
+        } else {
+          QUOTE_ITEMS[i][f] = String(e.target.value || "").trim().toUpperCase();
+        }
+      });
+    });
+
+    tr.querySelector("button[data-act='del']").addEventListener("click", () => {
+      QUOTE_ITEMS.splice(idx, 1);
+      renderQuoteLines();
+    });
+  });
+}
+
+function getQuoteClient(){
+  return {
+    name: document.getElementById("q_client_name").value.trim(),
+    ruc: document.getElementById("q_client_ruc").value.trim(),
+    contact_name: document.getElementById("q_contact_name").value.trim(),
+    contact_email: document.getElementById("q_contact_email").value.trim(),
+  };
+}
+
+async function doQuotePreview(mode){
+  const client = getQuoteClient();
+  const exam_type = document.getElementById("q_exam_type").value;
+  const valid_on = document.getElementById("q_valid_on").value;
+
+  if (!client.name || !client.ruc){
+    alert("Falta cliente y/o RUC.");
+    return;
+  }
+
+  let payload = { mode, client, exam_type, valid_on };
+
+  if (mode === "bulk"){
+    if (!BULK_VALID || !Array.isArray(BULK_VALID.valid_rows) || !BULK_VALID.valid_rows.length){
+      alert("No hay carga masiva válida. Ve a la pestaña 'Carga masiva' y sube un CSV primero.");
+      return;
+    }
+    payload.rows = BULK_VALID.valid_rows;
+  } else {
+    const items = QUOTE_ITEMS
+      .filter(x => x.service_code && x.qty)
+      .map(x => ({ service_code: x.service_code, qty: x.qty }));
+    if (!items.length){
+      alert("Agrega al menos 1 servicio.");
+      return;
+    }
+    payload.items = items;
+  }
+
+  setOverlay(true, "Previsualizando…", "Calculando tarifas y descuentos.");
+  try{
+    const res = await apiFetch("/quotes/preview", { method:"POST", body: payload });
+    QUOTE_PREVIEW = res.quote || null;
+    LAST_QUOTE_ID = null;
+    renderQuotePreview();
+  }catch(e){
+    alert("Error: " + (e.message || String(e)));
+  }finally{
+    setOverlay(false);
+  }
+}
+
+async function doQuoteSave(){
+  if (!QUOTE_PREVIEW){
+    alert("Primero previsualiza una cotización.");
+    return;
+  }
+
+  // Re-hacer el request a /quotes (save)
+  const client = getQuoteClient();
+  const exam_type = document.getElementById("q_exam_type").value;
+  const valid_on = document.getElementById("q_valid_on").value;
+
+  const mode = QUOTE_PREVIEW.mode || "manual";
+  const payload = { mode, client, exam_type, valid_on };
+
+  if (mode === "bulk"){
+    payload.rows = (BULK_VALID && BULK_VALID.valid_rows) ? BULK_VALID.valid_rows : [];
+  } else {
+    payload.items = QUOTE_ITEMS.filter(x => x.service_code && x.qty).map(x => ({ service_code: x.service_code, qty: x.qty }));
+  }
+
+  setOverlay(true, "Guardando…", "Registrando cotización en la base de datos.");
+  try{
+    const res = await apiFetch("/quotes", { method:"POST", body: payload });
+    QUOTE_PREVIEW = res.quote || QUOTE_PREVIEW;
+    LAST_QUOTE_ID = QUOTE_PREVIEW && QUOTE_PREVIEW.id ? QUOTE_PREVIEW.id : null;
+    renderQuotePreview();
+    await loadLastQuotes();
+    alert("Cotización guardada: " + (LAST_QUOTE_ID || "(sin id)"));
+  }catch(e){
+    alert("Error: " + (e.message || String(e)));
+  }finally{
+    setOverlay(false);
+  }
+}
+
+function renderQuotePreview(){
+  const kpis = document.getElementById("q_kpis");
+  const box = document.getElementById("q_preview_box");
+  const btnSave = document.getElementById("q_save");
+  const btnPrint = document.getElementById("q_print");
+
+  if (!kpis || !box) return;
+
+  if (!QUOTE_PREVIEW){
+    kpis.innerHTML = `
+      <div class="kpi"><div class="k">Subtotal</div><div class="v">—</div></div>
+      <div class="kpi"><div class="k">Descuento</div><div class="v">—</div></div>
+      <div class="kpi"><div class="k">Total</div><div class="v">—</div></div>
+    `;
+    box.innerHTML = `Aún no hay previsualización.`;
+    if (btnSave) btnSave.disabled = true;
+    if (btnPrint) btnPrint.disabled = true;
+    return;
+  }
+
+  const q = QUOTE_PREVIEW;
+  const currency = q.currency || "USD";
+
+  kpis.innerHTML = `
+    <div class="kpi"><div class="k">Subtotal</div><div class="v">${money(q.subtotal_cents, currency)}</div></div>
+    <div class="kpi"><div class="k">Descuento</div><div class="v ${q.discount_total_cents ? "warn" : ""}">${money(q.discount_total_cents, currency)}</div></div>
+    <div class="kpi"><div class="k">Total</div><div class="v ok">${money(q.total_cents, currency)}</div></div>
+  `;
+
+  const warnings = Array.isArray(q.warnings) && q.warnings.length
+    ? `<div class="pill warn" style="margin-top:10px">⚠️ ${q.warnings.length} advertencia(s)</div>
+       <ul class="help" style="margin-top:8px; padding-left:18px;">
+         ${q.warnings.slice(0,6).map(w => `<li>${escapeHtml(w)}</li>`).join("")}
+       </ul>`
+    : "";
+
+  const discounts = Array.isArray(q.discounts) && q.discounts.length
+    ? `<div class="pill" style="margin-top:10px">🏷️ Descuentos aplicados</div>
+       <ul class="help" style="margin-top:8px; padding-left:18px;">
+         ${q.discounts.map(d => `<li><b>${escapeHtml(d.name)}</b> — ${money(d.amount_cents, currency)} <span class="help">(${escapeHtml(d.reason || "")})</span></li>`).join("")}
+       </ul>`
+    : `<div class="help" style="margin-top:10px">No se aplicaron descuentos.</div>`;
+
+  const items = Array.isArray(q.items) ? q.items : [];
+
+  box.innerHTML = `
+    <div class="pill">Detalle</div>
+    <div style="margin-top:10px; overflow:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:28%">Código</th>
+            <th>Descripción</th>
+            <th style="width:12%">Qty</th>
+            <th style="width:18%">Unit</th>
+            <th style="width:18%">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${
+            items.length
+              ? items.map(it => `
+                <tr>
+                  <td class="mono">${escapeHtml(it.service_code || "")}</td>
+                  <td>${escapeHtml(it.service_name || "—")}</td>
+                  <td>${escapeHtml(it.qty || 0)}</td>
+                  <td>${money(it.unit_price_cents || 0, currency)}</td>
+                  <td><b>${money(it.line_total_cents || 0, currency)}</b></td>
+                </tr>
+              `).join("")
+              : `<tr><td colspan="5" class="help">No hay items.</td></tr>`
+          }
+        </tbody>
+      </table>
+    </div>
+
+    ${discounts}
+    ${warnings}
+
+    <div class="hr"></div>
+    <div class="help">
+      <b>Modo:</b> ${escapeHtml(q.mode || "—")} ·
+      <b>Vigencia:</b> ${escapeHtml(q.valid_on || "—")} ·
+      <b>Tipo:</b> ${escapeHtml(q.exam_type || "—")}
+      ${q.meta && q.meta.peopleCount ? ` · <b>Personas:</b> ${escapeHtml(q.meta.peopleCount)}` : ""}
+    </div>
+    ${q.id ? `<div class="help"><b>ID:</b> <span class="mono">${escapeHtml(q.id)}</span></div>` : ""}
+  `;
+
+  if (btnSave) btnSave.disabled = false;
+  if (btnPrint) btnPrint.disabled = false;
+}
+
+function printQuote(q){
+  if (!q) return;
+  const currency = q.currency || "USD";
+  const client = q.client || {};
+  const items = Array.isArray(q.items) ? q.items : [];
+  const discounts = Array.isArray(q.discounts) ? q.discounts : [];
+
+  const html = `
+<!doctype html>
+<html><head><meta charset="utf-8"/>
+<title>Cotización ${escapeHtml(q.id || "")}</title>
+<style>
+  body{font-family:Arial, sans-serif; margin:28px; color:#111827}
+  h1{margin:0 0 8px 0}
+  .muted{color:#64748b; font-size:12px}
+  table{width:100%; border-collapse:collapse; margin-top:18px}
+  th,td{border:1px solid #e2e8f0; padding:8px; font-size:12px}
+  th{text-transform:uppercase; letter-spacing:.08em; background:#f8fafc}
+  .right{text-align:right}
+</style>
+</head><body>
+  <h1>Cotización</h1>
+  <div class="muted"><b>Cliente:</b> ${escapeHtml(client.name || "")} · <b>RUC:</b> ${escapeHtml(client.ruc || "")}</div>
+  <div class="muted"><b>Vigencia:</b> ${escapeHtml(q.valid_on || "")} · <b>Tipo:</b> ${escapeHtml(q.exam_type || "")} · <b>Modo:</b> ${escapeHtml(q.mode || "")}</div>
+  ${q.id ? `<div class="muted"><b>ID:</b> ${escapeHtml(q.id)}</div>` : ""}
+
+  <table>
+    <thead>
+      <tr><th>Código</th><th>Descripción</th><th class="right">Qty</th><th class="right">Unit</th><th class="right">Total</th></tr>
+    </thead>
+    <tbody>
+      ${items.map(it => `
+        <tr>
+          <td>${escapeHtml(it.service_code || "")}</td>
+          <td>${escapeHtml(it.service_name || "")}</td>
+          <td class="right">${escapeHtml(it.qty || 0)}</td>
+          <td class="right">${money(it.unit_price_cents || 0, currency)}</td>
+          <td class="right"><b>${money(it.line_total_cents || 0, currency)}</b></td>
+        </tr>
+      `).join("")}
+    </tbody>
+  </table>
+
+  <div style="margin-top:14px;">
+    <div><b>Subtotal:</b> ${money(q.subtotal_cents || 0, currency)}</div>
+    <div><b>Descuento:</b> ${money(q.discount_total_cents || 0, currency)}</div>
+    <div style="font-size:16px; margin-top:6px;"><b>Total:</b> ${money(q.total_cents || 0, currency)}</div>
+  </div>
+
+  ${discounts.length ? `
+    <div style="margin-top:14px;">
+      <div class="muted" style="font-weight:700">Descuentos aplicados</div>
+      <ul>
+        ${discounts.map(d => `<li>${escapeHtml(d.name)} — ${money(d.amount_cents || 0, currency)}</li>`).join("")}
+      </ul>
+    </div>` : ""}
+
+  <script>window.print();</script>
+</body></html>`;
+
+  const w = window.open("", "_blank");
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
+/**
+ * ===========================
+ * Bulk screen
+ * ===========================
+ */
+function renderBulkScreen(root){
+  root.innerHTML = `
+    <div class="grid2">
+      <div>
+        <div class="pill">📄 Carga masiva (CSV)</div>
+        <div class="help" style="margin-top:8px">
+          Sube un CSV con columnas: <span class="mono">full_name,id_number,dob,sex,exam_type,email</span>.<br/>
+          <b>dob</b> debe ser YYYY-MM-DD o DD/MM/YYYY. <b>sex</b> debe ser M o F.
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="rowActions" style="justify-content:flex-start">
+          <input type="file" id="bulk_file" accept=".csv,text/csv" />
+          <button class="btn small" id="bulk_download_tpl" type="button">Descargar plantilla</button>
+          <button class="btn small primary" id="bulk_validate" type="button" disabled>Validar</button>
+          <button class="btn small ok" id="bulk_use_quote" type="button" disabled>Usar para cotizar</button>
+        </div>
+
+        <div class="help" style="margin-top:10px" id="bulk_file_info">Aún no se ha seleccionado archivo.</div>
+
+        <div class="hr"></div>
+
+        <div class="pill">🧪 Resultado de validación</div>
+        <div class="kpiRow" id="bulk_kpis"></div>
+
+        <div style="margin-top:10px; overflow:auto;" id="bulk_errors"></div>
+      </div>
+
+      <div>
+        <div class="pill">📌 Vista previa de filas válidas</div>
+        <div class="help" style="margin-top:8px">Solo se muestran las primeras 25 filas válidas.</div>
+        <div style="margin-top:10px; overflow:auto;" id="bulk_preview"></div>
+      </div>
+    </div>
+  `;
+
+  const fileEl = document.getElementById("bulk_file");
+  const btnValidate = document.getElementById("bulk_validate");
+  const btnUseQuote = document.getElementById("bulk_use_quote");
+
+  let fileText = "";
+
+  fileEl.addEventListener("change", async () => {
+    BULK_VALID = null;
+    btnUseQuote.disabled = true;
+    renderBulkResult();
+
+    const f = fileEl.files && fileEl.files[0];
+    if (!f){
+      document.getElementById("bulk_file_info").textContent = "Aún no se ha seleccionado archivo.";
+      btnValidate.disabled = true;
+      return;
+    }
+    fileText = await f.text();
+    document.getElementById("bulk_file_info").textContent = `Archivo: ${f.name} · ${(f.size/1024).toFixed(1)} KB`;
+    btnValidate.disabled = false;
+  });
+
+  document.getElementById("bulk_download_tpl").addEventListener("click", () => {
+    const tpl = [
+      "full_name,id_number,dob,sex,exam_type,email",
+      "Juan Perez,0102030405,1990-05-14,M,PREOCUPACIONAL,juan@empresa.com",
+      "Maria Gomez,0912345678,12/03/1987,F,PERIODICO,maria@empresa.com"
+    ].join("\n");
+    downloadText("plantilla_carga_masiva.csv", tpl);
+  });
+
+  document.getElementById("bulk_validate").addEventListener("click", async () => {
+    const rows = parseCsvToObjects(fileText);
+    if (!rows.length){
+      alert("El CSV parece vacío.");
+      return;
+    }
+    setOverlay(true, "Validando…", "Aplicando validaciones automáticas por edad, sexo y tipo de examen.");
+    try{
+      const res = await apiFetch("/bulk/validate", { method:"POST", body: { rows } });
+      BULK_VALID = res;
+      renderBulkResult();
+      btnUseQuote.disabled = !(BULK_VALID && BULK_VALID.valid_rows && BULK_VALID.valid_rows.length);
+    }catch(e){
+      alert("Error: " + (e.message || String(e)));
+    }finally{
+      setOverlay(false);
+    }
+  });
+
+  document.getElementById("bulk_use_quote").addEventListener("click", () => {
+    ACTIVE_TAB = "quote";
+    renderTabs();
+    renderScreen();
+    alert("Listo: ahora puedes usar 'Usar carga masiva (bulk)' en Cotización.");
+  });
+
+  renderBulkResult();
+}
+
+function renderBulkResult(){
+  const kpis = document.getElementById("bulk_kpis");
+  const errs = document.getElementById("bulk_errors");
+  const prev = document.getElementById("bulk_preview");
+  if (!kpis || !errs || !prev) return;
+
+  if (!BULK_VALID){
+    kpis.innerHTML = `
+      <div class="kpi"><div class="k">Total filas</div><div class="v">—</div></div>
+      <div class="kpi"><div class="k">Válidas</div><div class="v">—</div></div>
+      <div class="kpi"><div class="k">Con error</div><div class="v">—</div></div>
+    `;
+    errs.innerHTML = `<div class="help">Aún no hay validación.</div>`;
+    prev.innerHTML = `<div class="help">—</div>`;
+    return;
+  }
+
+  const sum = BULK_VALID.summary || { total:0, valid:0, invalid:0 };
+
+  kpis.innerHTML = `
+    <div class="kpi"><div class="k">Total filas</div><div class="v">${escapeHtml(sum.total)}</div></div>
+    <div class="kpi"><div class="k">Válidas</div><div class="v ok">${escapeHtml(sum.valid)}</div></div>
+    <div class="kpi"><div class="k">Con error</div><div class="v ${sum.invalid ? "err" : ""}">${escapeHtml(sum.invalid)}</div></div>
+  `;
+
+  const errors = Array.isArray(BULK_VALID.errors) ? BULK_VALID.errors : [];
+  if (!errors.length){
+    errs.innerHTML = `<div class="pill">✅ Sin errores</div>`;
+  } else {
+    errs.innerHTML = `
+      <div class="pill err">⛔ ${errors.length} error(es)</div>
+      <div style="margin-top:10px; overflow:auto;">
+        <table>
+          <thead><tr><th style="width:14%">Fila</th><th>Mensajes</th></tr></thead>
+          <tbody>
+            ${errors.slice(0,60).map(e => `
+              <tr>
+                <td>${escapeHtml(e.row)}</td>
+                <td>${escapeHtml((e.messages || []).join("; "))}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+      ${errors.length > 60 ? `<div class="help" style="margin-top:8px">Mostrando 60 de ${errors.length} errores.</div>` : ""}
+    `;
+  }
+
+  const valid = Array.isArray(BULK_VALID.valid_rows) ? BULK_VALID.valid_rows : [];
+  prev.innerHTML = `
+    <div style="overflow:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th><th>ID</th><th>dob</th><th>sex</th><th>edad</th><th>exam_type</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${valid.slice(0,25).map(v => `
+            <tr>
+              <td>${escapeHtml(v.full_name)}</td>
+              <td class="mono">${escapeHtml(v.id_number)}</td>
+              <td>${escapeHtml(v.dob)}</td>
+              <td>${escapeHtml(v.sex)}</td>
+              <td>${escapeHtml(v.age)}</td>
+              <td>${escapeHtml(v.exam_type)}</td>
+            </tr>
+          `).join("")}
+          ${!valid.length ? `<tr><td colspan="6" class="help">No hay filas válidas.</td></tr>` : ""}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/**
+ * ===========================
+ * Agreements screen
+ * ===========================
+ */
+let AGREEMENTS_CACHE = [];
+let AGREEMENT_DETAIL = null;
+
+function renderAgreementsScreen(root){
+  const isAdmin = !!(ME && ME.permissions && ME.permissions.admin);
+
+  root.innerHTML = `
+    <div class="grid2">
+      <div>
+        <div class="pill">📑 Convenios</div>
+        <div class="help" style="margin-top:8px">
+          Registro simple de convenios y firma (auditoría con hash SHA-256, fecha, usuario).<br/>
+          ${isAdmin ? "Como admin puedes crear convenios." : "Si necesitas crear convenios, solicita rol admin."}
+        </div>
+
+        <div class="rowActions" style="margin-top:12px; justify-content:flex-start">
+          <button class="btn small" id="agr_reload" type="button">Recargar</button>
+          ${isAdmin ? `<button class="btn small primary" id="agr_new" type="button">+ Nuevo convenio</button>` : ""}
+        </div>
+
+        <div style="margin-top:12px; overflow:auto;" id="agr_list"></div>
+      </div>
+
+      <div>
+        <div class="pill">✍️ Detalle / Firma</div>
+        <div class="help" style="margin-top:8px">Selecciona un convenio para ver su detalle y firmar.</div>
+
+        <div class="hr"></div>
+
+        <div id="agr_detail" class="help">—</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("agr_reload").addEventListener("click", async ()=>{ await loadAgreements(); });
+
+  if (isAdmin){
+    document.getElementById("agr_new").addEventListener("click", () => {
+      openAgreementCreateModal();
+    });
+  }
+
+  loadAgreements().catch(()=>{});
+}
+
+async function loadAgreements(){
+  setOverlay(true, "Cargando…", "Leyendo convenios.");
+  try{
+    const res = await apiFetch("/agreements", { method:"GET" });
+    AGREEMENTS_CACHE = res.items || [];
+    renderAgreementList();
+    renderAgreementDetail();
+  }catch(e){
+    alert("Error: " + (e.message || String(e)));
+  }finally{
+    setOverlay(false);
+  }
+}
+
+function renderAgreementList(){
+  const el = document.getElementById("agr_list");
+  if (!el) return;
+
+  if (!AGREEMENTS_CACHE.length){
+    el.innerHTML = `<div class="help">No hay convenios aún.</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <table>
+      <thead><tr><th>Título</th><th>Cliente</th><th>Vigencia</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody>
+        ${AGREEMENTS_CACHE.map(a => `
+          <tr>
+            <td><b>${escapeHtml(a.title || "Convenio")}</b><div class="help mono">${escapeHtml(a.id || "")}</div></td>
+            <td>${escapeHtml(a.client_name || "")}<div class="help mono">${escapeHtml(a.client_ruc || "")}</div></td>
+            <td>${escapeHtml(a.effective_from || "")} → ${escapeHtml(a.effective_to || "—")}</td>
+            <td><span class="pill">${escapeHtml(a.status || "draft")}</span></td>
+            <td><button class="btn small" data-agr="${escapeHtml(a.id)}" type="button">Abrir</button></td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+
+  el.querySelectorAll("button[data-agr]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.agr;
+      await loadAgreementDetail(id);
+    });
+  });
+}
+
+async function loadAgreementDetail(id){
+  setOverlay(true, "Cargando…", "Abriendo convenio.");
+  try{
+    const res = await apiFetch(`/agreements/${id}`, { method:"GET" });
+    AGREEMENT_DETAIL = res;
+    renderAgreementDetail();
+  }catch(e){
+    alert("Error: " + (e.message || String(e)));
+  }finally{
+    setOverlay(false);
+  }
+}
+
+function renderAgreementDetail(){
+  const el = document.getElementById("agr_detail");
+  if (!el) return;
+
+  if (!AGREEMENT_DETAIL || !AGREEMENT_DETAIL.agreement){
+    el.innerHTML = `<div class="help">Selecciona un convenio en la lista.</div>`;
+    return;
+  }
+
+  const a = AGREEMENT_DETAIL.agreement;
+  const sigs = Array.isArray(AGREEMENT_DETAIL.signatures) ? AGREEMENT_DETAIL.signatures : [];
+  const acc = activeAccount();
+  const email = (acc && acc.username) ? acc.username : "";
+
+  el.innerHTML = `
+    <div class="help">
+      <div><b>Título:</b> ${escapeHtml(a.title || "")}</div>
+      <div><b>Cliente:</b> ${escapeHtml(a.client_name || "")} · <span class="mono">${escapeHtml(a.client_ruc || "")}</span></div>
+      <div><b>Vigencia:</b> ${escapeHtml(a.effective_from || "")} → ${escapeHtml(a.effective_to || "—")}</div>
+      <div><b>Estado:</b> ${escapeHtml(a.status || "")}</div>
+    </div>
+
+    <div class="hr"></div>
+
+    <label>Texto del convenio</label>
+    <textarea readonly>${escapeHtml(a.body_text || "")}</textarea>
+
+    <div class="hr"></div>
+
+    <div class="pill">Firmar</div>
+    <div class="grid2" style="margin-top:10px">
+      <div>
+        <label>Nombre</label>
+        <input id="sign_name" placeholder="Tu nombre" value="${escapeHtml((ME && ME.user && ME.user.name) ? ME.user.name : "")}" />
+      </div>
+      <div>
+        <label>Email</label>
+        <input id="sign_email" placeholder="tu@empresa.com" value="${escapeHtml(email)}" />
+      </div>
+      <div style="grid-column:1 / -1;">
+        <label>Firma (texto)</label>
+        <input id="sign_text" placeholder="Escribe tu firma (ej: 'Acepto y firmo electrónicamente')" />
+        <div class="help" style="margin-top:6px">Se registra hash SHA-256, fecha, usuario, IP y User-Agent (auditoría).</div>
+      </div>
+    </div>
+
+    <div class="rowActions" style="margin-top:12px">
+      <button class="btn small primary" id="sign_btn" type="button">Firmar</button>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="pill">Historial de firmas</div>
+    <div style="margin-top:10px; overflow:auto;">
+      <table>
+        <thead><tr><th>Firmante</th><th>Fecha</th><th>Hash</th></tr></thead>
+        <tbody>
+          ${
+            sigs.length
+              ? sigs.slice(0,50).map(s => `
+                <tr>
+                  <td>${escapeHtml(s.signer_name)}<div class="help">${escapeHtml(s.signer_email)}</div></td>
+                  <td>${escapeHtml(s.signed_at)}</td>
+                  <td class="mono">${escapeHtml(s.signature_hash || "")}</td>
+                </tr>
+              `).join("")
+              : `<tr><td colspan="3" class="help">Sin firmas aún.</td></tr>`
+          }
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  document.getElementById("sign_btn").addEventListener("click", async () => {
+    const signer_name = document.getElementById("sign_name").value.trim();
+    const signer_email = document.getElementById("sign_email").value.trim();
+    const signature_text = document.getElementById("sign_text").value.trim();
+    if (!signer_name || !signature_text){
+      alert("Nombre y firma son requeridos.");
+      return;
+    }
+
+    setOverlay(true, "Firmando…", "Registrando firma.");
+    try{
+      const res = await apiFetch(`/agreements/${a.id}/sign`, { method:"POST", body: { signer_name, signer_email, signature_text } });
+      alert("Firmado OK. Hash: " + res.signature_hash);
+      await loadAgreementDetail(a.id);
+    }catch(e){
+      alert("Error: " + (e.message || String(e)));
+    }finally{
+      setOverlay(false);
+    }
+  });
+}
+
+/**
+ * ===========================
+ * Admin screen
+ * ===========================
+ */
+let ADMIN_TARIFFS = [];
+let ADMIN_DISCOUNTS = [];
+let ADMIN_MATRIX = [];
+
+function renderAdminScreen(root){
+  const isAdmin = !!(ME && ME.permissions && ME.permissions.admin);
+  if (!isAdmin){
+    root.innerHTML = `
+      <div class="pill err">⛔ Acceso restringido</div>
+      <div class="help" style="margin-top:10px">
+        No tienes permisos de <b>administrador</b>. Solicita el rol <span class="mono">${escapeHtml(cfg().adminRole || "cotizador.admin")}</span> en Entra.
+      </div>
+    `;
+    return;
+  }
+
+  root.innerHTML = `
+    <div class="tabs" style="margin-bottom:12px">
+      <button class="tab active" id="adm_tab_tariffs" type="button">Tarifas</button>
+      <button class="tab" id="adm_tab_discounts" type="button">Descuentos</button>
+      <button class="tab" id="adm_tab_matrix" type="button">Matriz</button>
+    </div>
+
+    <div id="adm_body"></div>
+  `;
+
+  const setActive = (id) => {
+    ["adm_tab_tariffs","adm_tab_discounts","adm_tab_matrix"].forEach(x => document.getElementById(x).classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+  };
+
+  document.getElementById("adm_tab_tariffs").addEventListener("click", ()=>{ setActive("adm_tab_tariffs"); renderAdminTariffs(); });
+  document.getElementById("adm_tab_discounts").addEventListener("click", ()=>{ setActive("adm_tab_discounts"); renderAdminDiscounts(); });
+  document.getElementById("adm_tab_matrix").addEventListener("click", ()=>{ setActive("adm_tab_matrix"); renderAdminMatrix(); });
+
+  renderAdminTariffs();
+}
+
+function renderAdminTariffs(){
+  const root = document.getElementById("adm_body");
+  if (!root) return;
+
+  root.innerHTML = `
+    <div class="pill">📥 Carga de tarifas</div>
+    <div class="help" style="margin-top:8px">
+      Importa un CSV con columnas:<br/>
+      <span class="mono">service_code,service_name,exam_type,sex,min_age,max_age,currency,price</span><br/>
+      Se guarda como una <b>versión</b> (campo version) y fecha de vigencia.
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="grid2">
+      <div>
+        <label>Versión (etiqueta)</label>
+        <input id="tar_version" placeholder="2026-02-01-v1" />
+      </div>
+      <div>
+        <label>Vigente desde</label>
+        <input id="tar_from" type="date" value="${new Date().toISOString().slice(0,10)}" />
+      </div>
+      <div>
+        <label>Vigente hasta (opcional)</label>
+        <input id="tar_to" type="date" />
+      </div>
+      <div>
+        <label>Archivo CSV</label>
+        <input type="file" id="tar_file" accept=".csv,text/csv" />
+      </div>
+    </div>
+
+    <div class="rowActions" style="margin-top:12px; justify-content:flex-start">
+      <button class="btn small" id="tar_download_tpl" type="button">Descargar plantilla</button>
+      <button class="btn small primary" id="tar_import" type="button" disabled>Importar</button>
+      <button class="btn small" id="tar_reload" type="button">Recargar lista</button>
+    </div>
+
+    <div class="help" style="margin-top:10px" id="tar_info">—</div>
+
+    <div class="hr"></div>
+
+    <div class="pill">📋 Tarifas existentes</div>
+    <div style="margin-top:10px; overflow:auto;" id="tar_list"></div>
+  `;
+
+  const fileEl = document.getElementById("tar_file");
+  const btnImport = document.getElementById("tar_import");
+  let csvText = "";
+
+  document.getElementById("tar_download_tpl").addEventListener("click", () => {
+    const tpl = [
+      "service_code,service_name,exam_type,sex,min_age,max_age,currency,price",
+      "LAB_HEMOGRAMA,Hemograma completo,PREOCUPACIONAL,A,0,200,USD,8.50",
+      "RX_TORAX,Radiografía de tórax,PREOCUPACIONAL,A,0,200,USD,12.00"
+    ].join("\n");
+    downloadText("plantilla_tarifas.csv", tpl);
+  });
+
+  fileEl.addEventListener("change", async () => {
+    const f = fileEl.files && fileEl.files[0];
+    if (!f){
+      btnImport.disabled = true;
+      document.getElementById("tar_info").textContent = "—";
+      return;
+    }
+    csvText = await f.text();
+    document.getElementById("tar_info").textContent = `Archivo: ${f.name} · ${(f.size/1024).toFixed(1)} KB`;
+    btnImport.disabled = false;
+  });
+
+  document.getElementById("tar_import").addEventListener("click", async () => {
+    const version = document.getElementById("tar_version").value.trim() || new Date().toISOString().slice(0,10);
+    const effective_from = document.getElementById("tar_from").value;
+    const effective_to = document.getElementById("tar_to").value || null;
+
+    const rows = parseCsvToObjects(csvText);
+    const norm = rows.map(r => ({
+      service_code: (r.service_code || "").trim(),
+      service_name: (r.service_name || "").trim(),
+      exam_type: (r.exam_type || "GENERAL").trim(),
+      sex: (r.sex || "A").trim(),
+      min_age: r.min_age,
+      max_age: r.max_age,
+      currency: (r.currency || "USD").trim(),
+      price: r.price,
+    })).filter(x => x.service_code);
+
+    if (!norm.length){
+      alert("CSV sin filas válidas.");
+      return;
+    }
+
+    setOverlay(true, "Importando…", "Guardando tarifas en D1.");
+    try{
+      const res = await apiFetch("/admin/tariffs/import", { method:"POST", body: { version, effective_from, effective_to, rows: norm } });
+      alert(`Importadas ${res.imported} tarifas. Versión: ${res.version}`);
+      await adminLoadTariffs();
+    }catch(e){
+      alert("Error: " + (e.message || String(e)));
+    }finally{
+      setOverlay(false);
+    }
+  });
+
+  document.getElementById("tar_reload").addEventListener("click", async ()=>{ await adminLoadTariffs(); });
+
+  adminLoadTariffs().catch(()=>{});
+}
+
+async function adminLoadTariffs(){
+  setOverlay(true, "Cargando…", "Leyendo tarifas.");
+  try{
+    const res = await apiFetch("/admin/tariffs?limit=200", { method:"GET" });
+    ADMIN_TARIFFS = res.items || [];
+    renderAdminTariffsList();
+  }catch(e){
+    alert("Error: " + (e.message || String(e)));
+  }finally{
+    setOverlay(false);
+  }
+}
+
+function renderAdminTariffsList(){
+  const el = document.getElementById("tar_list");
+  if (!el) return;
+
+  if (!ADMIN_TARIFFS.length){
+    el.innerHTML = `<div class="help">No hay tarifas cargadas.</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Código</th><th>Nombre</th><th>Exam</th><th>Sex</th><th>Edad</th><th>Precio</th><th>Vigencia</th><th>Versión</th>
+      </tr></thead>
+      <tbody>
+        ${ADMIN_TARIFFS.slice(0,200).map(t => `
+          <tr>
+            <td class="mono">${escapeHtml(t.service_code)}</td>
+            <td>${escapeHtml(t.service_name || "—")}</td>
+            <td>${escapeHtml(t.exam_type || "—")}</td>
+            <td>${escapeHtml(t.sex || "A")}</td>
+            <td>${escapeHtml(t.min_age)}-${escapeHtml(t.max_age)}</td>
+            <td><b>${money(t.price_cents || 0, t.currency || "USD")}</b></td>
+            <td>${escapeHtml(t.effective_from || "")} → ${escapeHtml(t.effective_to || "—")}</td>
+            <td class="mono">${escapeHtml(t.version || "")}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+    <div class="help" style="margin-top:8px">Mostrando hasta 200 registros.</div>
+  `;
+}
+
+function renderAdminDiscounts(){
+  const root = document.getElementById("adm_body");
+  if (!root) return;
+
+  root.innerHTML = `
+    <div class="pill">🏷️ Gestión de descuentos</div>
+    <div class="help" style="margin-top:8px">
+      Descuentos por % o valor fijo, con condiciones (cliente, tipo de examen, mínimos, subset de servicios, etc.).
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="grid2">
+      <div>
+        <label>Nombre</label>
+        <input id="d_name" placeholder="Descuento corporativo" />
+      </div>
+      <div>
+        <label>Prioridad (menor = aplica primero)</label>
+        <input id="d_priority" type="number" value="100" min="0" />
+      </div>
+      <div>
+        <label>Tipo</label>
+        <select id="d_type">
+          <option value="percent">Percent (%)</option>
+          <option value="fixed">Fixed (USD)</option>
+        </select>
+      </div>
+      <div>
+        <label>Valor</label>
+        <input id="d_value" placeholder="10  (si %), o 5.00 (si fijo)" />
+      </div>
+      <div>
+        <label>Stackable</label>
+        <select id="d_stackable">
+          <option value="0">No</option>
+          <option value="1">Sí</option>
+        </select>
+      </div>
+      <div>
+        <label>Activo</label>
+        <select id="d_active">
+          <option value="1">Sí</option>
+          <option value="0">No</option>
+        </select>
+      </div>
+      <div>
+        <label>Vigente desde</label>
+        <input id="d_from" type="date" value="${new Date().toISOString().slice(0,10)}" />
+      </div>
+      <div>
+        <label>Vigente hasta (opcional)</label>
+        <input id="d_to" type="date" />
+      </div>
+      <div style="grid-column:1 / -1;">
+        <label>Condiciones (opcional)</label>
+        <div class="grid2">
+          <div>
+            <label>Cliente RUC</label>
+            <input id="d_c_ruc" placeholder="Si aplica solo a un cliente" />
+          </div>
+          <div>
+            <label>Exam type</label>
+            <input id="d_c_exam" placeholder="PREOCUPACIONAL / PERIODICO / etc" />
+          </div>
+          <div>
+            <label>Min subtotal (USD)</label>
+            <input id="d_c_min_sub" placeholder="100.00" />
+          </div>
+          <div>
+            <label>Min qty (suma de cantidades)</label>
+            <input id="d_c_min_qty" type="number" min="0" placeholder="50" />
+          </div>
+          <div style="grid-column:1 / -1;">
+            <label>Service codes (coma-separados, opcional)</label>
+            <input id="d_c_services" placeholder="LAB_HEMOGRAMA,RX_TORAX" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rowActions" style="margin-top:12px; justify-content:flex-start">
+      <button class="btn small primary" id="d_create" type="button">Crear descuento</button>
+      <button class="btn small" id="d_reload" type="button">Recargar lista</button>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="pill">📋 Descuentos existentes</div>
+    <div style="margin-top:10px; overflow:auto;" id="d_list"></div>
+  `;
+
+  document.getElementById("d_create").addEventListener("click", async () => {
+    const name = document.getElementById("d_name").value.trim();
+    const priority = Number(document.getElementById("d_priority").value || 100);
+    const type = document.getElementById("d_type").value;
+    const value = document.getElementById("d_value").value.trim();
+    const stackable = document.getElementById("d_stackable").value === "1";
+    const active = document.getElementById("d_active").value === "1";
+    const effective_from = document.getElementById("d_from").value;
+    const effective_to = document.getElementById("d_to").value || null;
+
+    const conditions = {
+      client_ruc: document.getElementById("d_c_ruc").value.trim() || undefined,
+      exam_type: document.getElementById("d_c_exam").value.trim() || undefined,
+      min_subtotal: document.getElementById("d_c_min_sub").value.trim() || undefined,
+      min_qty: document.getElementById("d_c_min_qty").value ? Number(document.getElementById("d_c_min_qty").value) : undefined,
+      service_codes: document.getElementById("d_c_services").value.trim() || undefined
+    };
+
+    if (!name || !value){
+      alert("Nombre y valor son requeridos.");
+      return;
+    }
+
+    setOverlay(true, "Creando…", "Guardando descuento.");
+    try{
+      await apiFetch("/admin/discounts", { method:"POST", body: { name, priority, type, value, stackable, active, effective_from, effective_to, conditions } });
+      alert("Descuento creado.");
+      await adminLoadDiscounts();
+    }catch(e){
+      alert("Error: " + (e.message || String(e)));
+    }finally{
+      setOverlay(false);
+    }
+  });
+
+  document.getElementById("d_reload").addEventListener("click", async ()=>{ await adminLoadDiscounts(); });
+
+  adminLoadDiscounts().catch(()=>{});
+}
+
+async function adminLoadDiscounts(){
+  setOverlay(true, "Cargando…", "Leyendo descuentos.");
+  try{
+    const res = await apiFetch("/admin/discounts?limit=200", { method:"GET" });
+    ADMIN_DISCOUNTS = res.items || [];
+    renderAdminDiscountsList();
+  }catch(e){
+    alert("Error: " + (e.message || String(e)));
+  }finally{
+    setOverlay(false);
+  }
+}
+
+function renderAdminDiscountsList(){
+  const el = document.getElementById("d_list");
+  if (!el) return;
+
+  if (!ADMIN_DISCOUNTS.length){
+    el.innerHTML = `<div class="help">No hay descuentos.</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <table>
+      <thead><tr><th>Nombre</th><th>Tipo</th><th>Valor</th><th>Prioridad</th><th>Stackable</th><th>Vigencia</th><th>Activo</th><th>Condiciones</th></tr></thead>
+      <tbody>
+        ${ADMIN_DISCOUNTS.map(d => {
+          const val = d.type === "fixed" ? money(d.value_cents || 0, d.currency || "USD") : ((d.value_bps || 0)/100).toFixed(2) + "%";
+          const cond = d.conditions || {};
+          const condStr = JSON.stringify(cond);
+          return `
+            <tr>
+              <td><b>${escapeHtml(d.name)}</b><div class="help mono">id: ${escapeHtml(d.id)}</div></td>
+              <td>${escapeHtml(d.type)}</td>
+              <td>${escapeHtml(val)}</td>
+              <td>${escapeHtml(d.priority)}</td>
+              <td>${d.stackable ? "Sí" : "No"}</td>
+              <td>${escapeHtml(d.effective_from)} → ${escapeHtml(d.effective_to || "—")}</td>
+              <td>${d.active ? "Sí" : "No"}</td>
+              <td class="mono">${escapeHtml(condStr)}</td>
+            </tr>
+          `;
+        }).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function renderAdminMatrix(){
+  const root = document.getElementById("adm_body");
+  if (!root) return;
+
+  root.innerHTML = `
+    <div class="pill">🧩 Matriz de trabajo</div>
+    <div class="help" style="margin-top:8px">
+      Define reglas para asignar automáticamente servicios según <b>edad</b>, <b>sexo</b> y <b>tipo de examen</b>.
+      Se usa en <b>modo bulk</b> para cotizar desde carga masiva.
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="grid2">
+      <div>
+        <label>Nombre</label>
+        <input id="m_name" placeholder="Regla general hombres 18-45" />
+      </div>
+      <div>
+        <label>Exam type</label>
+        <input id="m_exam" placeholder="PREOCUPACIONAL" value="PREOCUPACIONAL" />
+      </div>
+      <div>
+        <label>Sexo</label>
+        <select id="m_sex">
+          <option value="A">A (cualquiera)</option>
+          <option value="M">M</option>
+          <option value="F">F</option>
+        </select>
+      </div>
+      <div class="grid2" style="gap:12px">
+        <div>
+          <label>Min edad</label>
+          <input id="m_min" type="number" value="0" min="0" max="120" />
+        </div>
+        <div>
+          <label>Max edad</label>
+          <input id="m_max" type="number" value="200" min="0" max="200" />
+        </div>
+      </div>
+      <div style="grid-column:1 / -1;">
+        <label>Servicios (coma-separados)</label>
+        <input id="m_services" placeholder="LAB_HEMOGRAMA,RX_TORAX" />
+      </div>
+      <div style="grid-column:1 / -1;">
+        <label>Notas (opcional)</label>
+        <input id="m_notes" placeholder="Observaciones" />
+      </div>
+      <div>
+        <label>Activo</label>
+        <select id="m_active">
+          <option value="1">Sí</option>
+          <option value="0">No</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="rowActions" style="margin-top:12px; justify-content:flex-start">
+      <button class="btn small primary" id="m_create" type="button">Crear regla</button>
+      <button class="btn small" id="m_reload" type="button">Recargar lista</button>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="pill">📋 Reglas existentes</div>
+    <div style="margin-top:10px; overflow:auto;" id="m_list"></div>
+  `;
+
+  document.getElementById("m_create").addEventListener("click", async () => {
+    const name = document.getElementById("m_name").value.trim() || "Regla";
+    const exam_type = document.getElementById("m_exam").value.trim() || "GENERAL";
+    const sex = document.getElementById("m_sex").value;
+    const min_age = Number(document.getElementById("m_min").value || 0);
+    const max_age = Number(document.getElementById("m_max").value || 200);
+    const services = document.getElementById("m_services").value.trim();
+    const notes = document.getElementById("m_notes").value.trim() || null;
+    const active = document.getElementById("m_active").value === "1";
+
+    if (!services){
+      alert("Servicios requeridos.");
+      return;
+    }
+
+    setOverlay(true, "Creando…", "Guardando regla de matriz.");
+    try{
+      await apiFetch("/admin/matrix", { method:"POST", body: { name, exam_type, sex, min_age, max_age, services, notes, active } });
+      alert("Regla creada.");
+      await adminLoadMatrix();
+    }catch(e){
+      alert("Error: " + (e.message || String(e)));
+    }finally{
+      setOverlay(false);
+    }
+  });
+
+  document.getElementById("m_reload").addEventListener("click", async ()=>{ await adminLoadMatrix(); });
+
+  adminLoadMatrix().catch(()=>{});
+}
+
+async function adminLoadMatrix(){
+  setOverlay(true, "Cargando…", "Leyendo matriz.");
+  try{
+    const res = await apiFetch("/admin/matrix?limit=200", { method:"GET" });
+    ADMIN_MATRIX = res.items || [];
+    renderAdminMatrixList();
+  }catch(e){
+    alert("Error: " + (e.message || String(e)));
+  }finally{
+    setOverlay(false);
+  }
+}
+
+function renderAdminMatrixList(){
+  const el = document.getElementById("m_list");
+  if (!el) return;
+
+  if (!ADMIN_MATRIX.length){
+    el.innerHTML = `<div class="help">No hay reglas.</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <table>
+      <thead><tr><th>Nombre</th><th>Exam</th><th>Sex</th><th>Edad</th><th>Servicios</th><th>Activo</th><th>Acciones</th></tr></thead>
+      <tbody>
+        ${ADMIN_MATRIX.map(r => `
+          <tr>
+            <td><b>${escapeHtml(r.name || "")}</b><div class="help mono">id: ${escapeHtml(r.id)}</div></td>
+            <td>${escapeHtml(r.exam_type || "")}</td>
+            <td>${escapeHtml(r.sex || "A")}</td>
+            <td>${escapeHtml(r.min_age)}-${escapeHtml(r.max_age)}</td>
+            <td class="mono">${escapeHtml((r.services || []).join(","))}</td>
+            <td>${r.active ? "Sí" : "No"}</td>
+            <td><button class="btn small danger" data-del="${escapeHtml(r.id)}" type="button">Eliminar</button></td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+
+  el.querySelectorAll("button[data-del]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.del;
+      if (!confirm("Eliminar regla " + id + "?")) return;
+      setOverlay(true, "Eliminando…", "Borrando regla de matriz.");
+      try{
+        await apiFetch("/admin/matrix/" + id, { method:"DELETE" });
+        await adminLoadMatrix();
+      }catch(e){
+        alert("Error: " + (e.message || String(e)));
+      }finally{
+        setOverlay(false);
+      }
+    });
+  });
+}
+
+/**
+ * ===========================
+ * Last quotes list
+ * ===========================
+ */
+async function loadLastQuotes(){
+  const wrap = document.getElementById("q_last_quotes");
+  if (!wrap) return;
+
+  wrap.innerHTML = `<div class="help">Cargando…</div>`;
+  try{
+    const res = await apiFetch("/quotes?limit=15", { method:"GET" });
+    const list = res.items || [];
+    if (!list.length){
+      wrap.innerHTML = `<div class="help">No hay cotizaciones aún.</div>`;
+      return;
+    }
+
+    wrap.innerHTML = `
+      <table>
+        <thead><tr><th>ID</th><th>Cliente</th><th>Fecha</th><th>Modo</th><th>Total</th><th>Acción</th></tr></thead>
+        <tbody>
+          ${list.map(q => `
+            <tr>
+              <td class="mono">${escapeHtml(q.id)}</td>
+              <td>${escapeHtml(q.client_name)}<div class="help mono">${escapeHtml(q.client_ruc)}</div></td>
+              <td>${escapeHtml(q.created_at)}</td>
+              <td>${escapeHtml(q.mode)}</td>
+              <td><b>${money(q.total_cents || 0, q.currency || "USD")}</b></td>
+              <td><button class="btn small" data-q="${escapeHtml(q.id)}" type="button">Abrir</button></td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+
+    wrap.querySelectorAll("button[data-q]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.q;
+        setOverlay(true, "Abriendo…", "Leyendo cotización.");
+        try{
+          const res2 = await apiFetch("/quotes/" + id, { method:"GET" });
+          const quote = (res2.quote && res2.quote.result) ? res2.quote.result : null;
+          QUOTE_PREVIEW = quote;
+          LAST_QUOTE_ID = quote && quote.id ? quote.id : id;
+          renderQuotePreview();
+          alert("Cotización cargada en la vista previa.");
+        }catch(e){
+          alert("Error: " + (e.message || String(e)));
+        }finally{
+          setOverlay(false);
+        }
+      });
+    });
+  }catch(e){
+    wrap.innerHTML = `<div class="pill err">Error: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
+/**
+ * ===========================
+ * Agreement create modal (simple prompt-based)
+ * ===========================
+ */
+function openAgreementCreateModal(){
+  const client_name = prompt("Cliente (nombre):");
+  if (!client_name) return;
+  const client_ruc = prompt("Cliente (RUC):");
+  if (!client_ruc) return;
+  const title = prompt("Título del convenio:", "Convenio Marco") || "Convenio";
+  const body_text = prompt("Texto del convenio (resumen). Puedes editar luego en backend:", "Este convenio establece condiciones comerciales y de servicio...") || "";
+
+  const effective_from = new Date().toISOString().slice(0,10);
+  const effective_to = "";
+
+  setOverlay(true, "Creando…", "Registrando convenio.");
+  apiFetch("/agreements", { method:"POST", body: { client_name, client_ruc, title, body_text, status:"draft", effective_from, effective_to:null } })
+    .then(async (res) => {
+      alert("Convenio creado: " + res.id);
+      await loadAgreements();
+      await loadAgreementDetail(res.id);
+    })
+    .catch((e)=> alert("Error: " + (e.message || String(e))))
+    .finally(()=> setOverlay(false));
+}
+
+/**
+ * ===========================
+ * CSV helpers
+ * ===========================
+ */
+function downloadText(filename, text){
+  const blob = new Blob([text], { type:"text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 1000);
+}
+
+// Robust-ish CSV parser (commas, quotes)
+function parseCsv(text){
+  const rows = [];
+  const s = String(text || "");
+  let i = 0, field = "", row = [], inQuotes = false;
+
+  while (i < s.length){
+    const c = s[i];
+
+    if (inQuotes){
+      if (c === '"'){
+        if (s[i+1] === '"'){
+          field += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i++;
+        continue;
+      }
+      field += c;
+      i++;
+      continue;
+    }
+
+    if (c === '"'){ inQuotes = true; i++; continue; }
+    if (c === ","){
+      row.push(field);
+      field = "";
+      i++;
+      continue;
+    }
+    if (c === "\n"){
+      row.push(field);
+      field = "";
+      rows.push(row);
+      row = [];
+      i++;
+      continue;
+    }
+    if (c === "\r"){
+      i++;
+      continue;
+    }
+
+    field += c;
+    i++;
+  }
+
+  if (field.length || row.length) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function parseCsvToObjects(text){
+  const rows = parseCsv(text);
+  if (!rows.length) return [];
+  const headers = rows[0].map(h => String(h || "").trim());
+  const out = [];
+  for (let i = 1; i < rows.length; i++){
+    const r = rows[i];
+    if (!r || !r.length) continue;
+    const obj = {};
+    for (let j = 0; j < headers.length; j++){
+      const k = headers[j];
+      if (!k) continue;
+      obj[k] = (r[j] == null) ? "" : String(r[j]).trim();
+    }
+    // skip empty lines
+    const hasAny = Object.values(obj).some(v => String(v||"").trim() !== "");
+    if (hasAny) out.push(obj);
+  }
+  return out;
+}
+
+/**
+ * ===========================
+ * Config modal + environment badge
+ * ===========================
+ */
+function setVersionBadge(){
+  const badge = document.getElementById("versionBadge");
+  if (!badge) return;
+  const meta = document.querySelector('meta[name="app-branch"]');
+  const metaValue = meta ? String(meta.content || "").trim() : "";
+  badge.textContent = metaValue || "local";
+}
+function openConfig(){
+  const c = cfg();
+  document.getElementById("cfgWorker").value = c.workerUrl || "";
+  document.getElementById("cfgTenant").value = c.tenantId || "";
+  document.getElementById("cfgClient").value = c.clientId || "";
+  document.getElementById("cfgScope").value = c.scope || "";
+  document.getElementById("cfgAdminRole").value = c.adminRole || "";
+  document.getElementById("testResult").textContent = "";
+  document.getElementById("modalBackdrop").style.display = "flex";
+}
+function closeConfig(){
+  document.getElementById("modalBackdrop").style.display = "none";
+}
+async function testConnection(){
+  const w = (document.getElementById("cfgWorker").value || "").trim().replace(/\/+$/,"");
+  const el = document.getElementById("testResult");
+  el.textContent = "Probando…";
+  try{
+    const r = await fetch(w + "/health");
+    const t = await r.text();
+    if (!r.ok) throw new Error("HTTP " + r.status + ": " + t);
+    const j = JSON.parse(t);
+    el.innerHTML = `<span class="pill">✅ OK</span> <span class="help">service=${escapeHtml(j.service || "")}</span>`;
+  }catch(e){
+    el.innerHTML = `<span class="pill err">⛔ ERROR</span> <span class="help">${escapeHtml(e.message || String(e))}</span>`;
+  }
+}
+function saveConfigFromModal(){
+  const c = {
+    workerUrl: (document.getElementById("cfgWorker").value || "").trim().replace(/\/+$/,""),
+    tenantId: (document.getElementById("cfgTenant").value || "").trim(),
+    clientId: (document.getElementById("cfgClient").value || "").trim(),
+    scope: (document.getElementById("cfgScope").value || "").trim(),
+    adminRole: (document.getElementById("cfgAdminRole").value || "").trim(),
+  };
+  if (!c.workerUrl || !c.tenantId || !c.clientId || !c.scope){
+    alert("Faltan campos requeridos.");
+    return;
+  }
+  saveCfg(c);
+  closeConfig();
+  // Para asegurar MSAL con nueva config, recargamos.
+  alert("Configuración guardada. Se recargará la página.");
+  window.location.reload();
+}
+
+/**
+ * ===========================
+ * Auth UI
+ * ===========================
+ */
+function showLogin(){
+  document.getElementById("loginWrap").style.display = "flex";
+  document.getElementById("appMain").style.display = "none";
+  document.getElementById("appHeader").style.display = "none";
+  document.getElementById("loginBtn").style.display = "inline-block";
+  document.getElementById("logoutBtn").style.display = "none";
+  document.getElementById("userChip").style.display = "none";
+}
+function showApp(){
+  document.getElementById("loginWrap").style.display = "none";
+  document.getElementById("appMain").style.display = "flex";
+  document.getElementById("appHeader").style.display = "flex";
+  document.getElementById("loginBtn").style.display = "none";
+  document.getElementById("logoutBtn").style.display = "inline-block";
+}
+
+async function refreshAuthUI(){
+  const acc = activeAccount();
+
+  document.getElementById("badgeEnv").textContent = "SSO";
+  document.getElementById("modeHintText").textContent = workerUrl();
+
+  if (!acc){
+    setStatus(false, "No autenticado");
+    showLogin();
+    return;
+  }
+
+  setStatus(true, "Autenticado");
+  showApp();
+
+  // basic user chip
+  const userChip = document.getElementById("userChip");
+  userChip.style.display = "flex";
+  document.getElementById("userName").textContent = acc.name || acc.username || "Usuario";
+  document.getElementById("userInitials").textContent = safeInitials(acc.name || acc.username);
+
+  // load /me (permissions)
+  try{
+    setOverlay(true, "Cargando…", "Validando permisos.");
+    const me = await loadMe();
+    const isAdmin = !!(me && me.permissions && me.permissions.admin);
+    document.getElementById("badgeAdmin").style.display = isAdmin ? "inline-flex" : "none";
+    document.getElementById("userRole").textContent = isAdmin ? ("Rol: " + (cfg().adminRole || "admin")) : "Usuario";
+
+    // render main UI
+    renderTabs();
+    renderScreen();
+  }catch(e){
+    document.getElementById("loginMsg").textContent = "Error al conectar al Worker: " + (e.message || String(e));
+    alert("Error al conectar al Worker. Revisa Configuración.\n\n" + (e.message || String(e)));
+    openConfig();
+  }finally{
+    setOverlay(false);
+  }
+}
+
+/**
+ * ===========================
+ * Wire events
+ * ===========================
+ */
+function wireEvents(){
+  document.getElementById("cfgBtn").addEventListener("click", openConfig);
+  document.getElementById("closeCfgBtn").addEventListener("click", closeConfig);
+  document.getElementById("testConnBtn").addEventListener("click", testConnection);
+  document.getElementById("saveCfgBtn").addEventListener("click", saveConfigFromModal);
+
+  document.getElementById("loginBtn").addEventListener("click", login);
+  document.getElementById("logoutBtn").addEventListener("click", logout);
+  document.getElementById("loginBtn2").addEventListener("click", login);
+  document.getElementById("openCfgBtn2").addEventListener("click", openConfig);
+}
+
+/**
+ * ===========================
+ * Init
+ * ===========================
+ */
+wireEvents();
+setVersionBadge();
+showLogin();
+authInit().catch((e)=>{
+  console.error(e);
+  document.getElementById("loginMsg").textContent = "Error inicializando MSAL: " + (e.message || String(e));
+});
+</script>
+</body>
+</html>
